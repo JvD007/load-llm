@@ -223,7 +223,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             st.text_input("R2 Bucket", value="gridweave")
 
     ma, mb, mc = st.columns(3)
-    with ma: model_id      = st.text_input("Model ID",       value="meta-llama/Llama-3.2-1B")
+    with ma: model_id      = st.text_input("Model ID",       value="meta-llama/Llama-3.2-1B-Instruct")
     with mb: vram          = st.selectbox("VRAM", ["4GB", "8GB", "16GB", "24GB", "40GB", "80GB"])
     with mc: endpoint_name = st.text_input("Endpoint Name",  value="llama-eric")
 
@@ -278,10 +278,16 @@ if st.session_state.endpoint:
 
     left, right = st.columns([3, 1])
 
+    # Base models (no "instruct" in name) don't understand chat format —
+    # use generate() with a plain Q&A prompt instead.
+    _is_instruct = "instruct" in ep.model.lower()
+
     with right:
         st.caption("Settings")
         max_tokens  = st.slider("Max tokens",  64, 2048, 512, step=64)
         temperature = st.slider("Temperature", 0.0, 2.0,  0.7, step=0.05)
+        if not _is_instruct:
+            st.warning("Base model detected — using completion mode.", icon="⚠️")
         if st.button("🗑 Clear chat", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
@@ -300,11 +306,23 @@ if st.session_state.endpoint:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
-                        response = ep.chat(
-                            [{"role": m["role"], "content": m["content"]}
-                             for m in st.session_state.chat_history],
-                            max_tokens=max_tokens, temperature=temperature,
-                        )
+                        if _is_instruct:
+                            response = ep.chat(
+                                [{"role": m["role"], "content": m["content"]}
+                                 for m in st.session_state.chat_history],
+                                max_tokens=max_tokens, temperature=temperature,
+                            )
+                        else:
+                            import re
+                            # Build a plain Q&A prompt; base models don't follow chat format
+                            prompt_text = "\n".join(
+                                f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+                                for m in st.session_state.chat_history
+                            ) + "\nAssistant:"
+                            raw = ep.generate(prompt_text, max_tokens=max_tokens,
+                                              temperature=temperature)
+                            # Strip the looping repetition base models produce
+                            response = re.split(r"\n(User|Assistant):", raw)[0].strip()
                     except Exception as exc:
                         response = f"⚠️ Error: {exc}"
                 st.write(response)
