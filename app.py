@@ -24,13 +24,22 @@ for _k, _v in [
     ("endpoint",       None),
     ("chat_history",   []),
     ("_result_queue",  None),
+    ("gpu_cache",      {}),       # (vendor, vram_gb) -> "RTX 3090" etc.
+    ("_gpu_detecting", set()),    # set of (vendor, vram_gb) currently probing
+    ("_gpu_queue",     None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
 
-# ── GPU model inference (vendor + VRAM → likely model name) ──────────────────
-def _infer_gpu(vendor: str, vram_gb: int) -> str:
+# ── GPU name: cache lookup → inferred fallback ────────────────────────────────
+def _gpu_name(vendor: str, vram_gb: int) -> str:
+    cached = st.session_state.gpu_cache.get((vendor, vram_gb))
+    if cached:
+        return cached
+    if (vendor, vram_gb) in st.session_state._gpu_detecting:
+        return "detecting…"
+    # VRAM-based inference as fallback
     v = vendor.upper()
     if v == "NVIDIA":
         if vram_gb >= 78: return "A100 / H100 80 GB"
@@ -64,19 +73,19 @@ def _hw_lookup() -> dict:
         return {}
 
 
-def _hw(ep_info: dict, lookup: dict) -> tuple[str, str, str]:
-    """Return (host, gpu_model, vendor) for an endpoint."""
+def _hw(ep_info: dict, lookup: dict) -> tuple[str, str, str, int]:
+    """Return (host, gpu_name, vendor, vram_gb)."""
     ray     = ep_info.get("rayservice_name", "")
     node    = lookup.get(ray, {})
-    host    = node.get("host")   or "—"
+    host    = node.get("host") or "—"
     vendor  = node.get("vendor") or ep_info.get("vendor", "—")
     vram_mb = ep_info.get("vram_mb") or 0
     vram_gb = round(vram_mb / 1024) if vram_mb else (node.get("vram_gb") or 0)
-    gpu     = _infer_gpu(vendor, vram_gb) if vram_gb else f"{vendor}"
-    return host, gpu, vendor
+    gpu     = _gpu_name(vendor, vram_gb)
+    return host, gpu, vendor, vram_gb
 
 
-# ── Background install / deploy / start workers ───────────────────────────────
+# ── Background workers ────────────────────────────────────────────────────────
 def _install_deps():
     import os, urllib.request
     if not os.path.exists(WHL_PATH):
@@ -140,35 +149,122 @@ def _start_worker(name: str, admin_token: str, platform_url: str, q: queue.Queue
         q.put(("error", str(exc)))
 
 
+def _gpu_detect_worker(vendor: str, vram_gb: int,
+                        admin_token: str, platform_url: str,
+                        q: queue.Queue):
+    """Runs nvidia-smi / rocm-smi on a matching remote worker to get the real GPU name."""
+    try:
+        import gridweave
+        gridweave.auth(admin_token, platform_url=platform_url)
+
+        def _probe():
+            import os, subprocess
+
+            def _read(path):
+                try:
+                    with open(path, "r", errors="ignore") as f: return f.read().strip()
+                except: return ""
+
+            # Server brand from DMI
+            parts = [p for p in [
+                _read("/sys/class/dmi/id/sys_vendor"),
+                _read("/sys/class/dmi/id/product_name"),
+            ] if p and p.lower() not in {"none", "not specified"}]
+            server = " ".join(parts) if parts else os.uname().nodename
+
+            # GPU name
+            gpu_out = ""
+            for cmd in [["nvidia-smi", "-L"], ["rocm-smi", "--showproductname"]]:
+                try:
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                    if r.returncode == 0 and r.stdout.strip():
+                        gpu_out = r.stdout.strip(); break
+                except FileNotFoundError:
+                    continue
+                except Exception as e:
+                    gpu_out = f"error: {e}"; break
+
+            return {"server": server, "gpu_out": gpu_out}
+
+        probe_fn = gridweave.remote(vram=f"{vram_gb}GB", vendor=vendor)(_probe)
+        result   = gridweave.run(probe_fn)
+
+        # Parse "GPU 0: NVIDIA A100-SXM4-80GB (UUID: ...)" → "NVIDIA A100-SXM4-80GB"
+        gpu_out  = result.get("gpu_out", "")
+        names    = re.findall(r"GPU \d+:\s*(.+?)\s*\(UUID:", gpu_out)
+        gpu_name = names[0] if names else (gpu_out.splitlines()[0].strip() if gpu_out else "")
+
+        q.put(("gpu_detected", {
+            "vendor":   vendor,
+            "vram_gb":  vram_gb,
+            "gpu_name": gpu_name,
+            "server":   result.get("server", ""),
+        }))
+    except Exception as exc:
+        q.put(("gpu_detect_failed", (vendor, vram_gb, str(exc))))
+
+
 def _launch(target, args):
     q = queue.Queue()
     st.session_state._result_queue = q
     threading.Thread(target=target, args=(*args, q), daemon=True).start()
 
 
-# ── Poll result queue ─────────────────────────────────────────────────────────
+def _start_gpu_detect(vendor: str, vram_gb: int):
+    """Spin up a GPU probe for this (vendor, vram_gb) if not already running."""
+    key = (vendor, vram_gb)
+    if key in st.session_state.gpu_cache or key in st.session_state._gpu_detecting:
+        return
+    if st.session_state._gpu_queue is None:
+        st.session_state._gpu_queue = queue.Queue()
+    st.session_state._gpu_detecting.add(key)
+    threading.Thread(
+        target=_gpu_detect_worker,
+        args=(vendor, vram_gb,
+              st.session_state.admin_token,
+              st.session_state.platform_url,
+              st.session_state._gpu_queue),
+        daemon=True,
+    ).start()
+
+
+# ── Poll queues on every rerun ────────────────────────────────────────────────
 def _poll():
     q = st.session_state._result_queue
-    if q is None:
-        return
+    if q is None: return
     while True:
-        try:
-            kind, value = q.get_nowait()
-        except queue.Empty:
-            break
-        if kind == "log":
-            st.session_state.action_log.append(value)
+        try: kind, value = q.get_nowait()
+        except queue.Empty: break
+        if   kind == "log":   st.session_state.action_log.append(value)
         elif kind == "done":
-            st.session_state.action_state = "idle"
-            st.session_state.endpoint = value
-            st.session_state.chat_history = []
+            st.session_state.action_state  = "idle"
+            st.session_state.endpoint      = value
+            st.session_state.chat_history  = []
             st.session_state._result_queue = None
         elif kind == "error":
-            st.session_state.action_state = "error"
-            st.session_state.action_error = value
+            st.session_state.action_state  = "error"
+            st.session_state.action_error  = value
             st.session_state._result_queue = None
 
+
+def _gpu_poll():
+    q = st.session_state._gpu_queue
+    if q is None: return
+    while True:
+        try: kind, value = q.get_nowait()
+        except queue.Empty: break
+        if kind == "gpu_detected":
+            key = (value["vendor"], value["vram_gb"])
+            if value.get("gpu_name"):
+                st.session_state.gpu_cache[key] = value["gpu_name"]
+            st.session_state._gpu_detecting.discard(key)
+        elif kind == "gpu_detect_failed":
+            vendor, vram_gb, _ = value
+            st.session_state._gpu_detecting.discard((vendor, vram_gb))
+
+
 _poll()
+_gpu_poll()
 
 # ═════════════════════════════════════════════════════════════════════════════
 # LOGIN SCREEN
@@ -176,15 +272,11 @@ _poll()
 if not st.session_state.authenticated:
     st.title("🦙 Gridweave LLM Launcher")
     st.divider()
-
     _, centre, _ = st.columns([1, 2, 1])
     with centre:
         st.subheader("Sign in")
-        platform_url_in = st.text_input(
-            "Platform URL", value=st.session_state.platform_url)
-        token_in = st.text_input(
-            "Admin Token", type="password", placeholder="Enter your admin token")
-
+        platform_url_in = st.text_input("Platform URL", value=st.session_state.platform_url)
+        token_in = st.text_input("Admin Token", type="password", placeholder="Enter your admin token")
         if st.button("Login", type="primary", use_container_width=True):
             if not token_in.strip():
                 st.error("Please enter your admin token.")
@@ -193,13 +285,12 @@ if not st.session_state.authenticated:
                     try:
                         import gridweave as _gw_check
                         _gw_check.auth(token_in.strip(), platform_url=platform_url_in)
-                        _gw_check.endpoints()   # verify the token actually works
+                        _gw_check.endpoints()
                         st.session_state.admin_token   = token_in.strip()
                         st.session_state.platform_url  = platform_url_in
                         st.session_state.authenticated = True
                         st.rerun()
                     except ImportError:
-                        # SDK not installed yet — accept token, install happens on first deploy
                         st.session_state.admin_token   = token_in.strip()
                         st.session_state.platform_url  = platform_url_in
                         st.session_state.authenticated = True
@@ -209,7 +300,7 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ═════════════════════════════════════════════════════════════════════════════
-# MAIN UI  (only reached when authenticated)
+# MAIN UI
 # ═════════════════════════════════════════════════════════════════════════════
 try:
     import gridweave as _gw
@@ -218,19 +309,22 @@ try:
 except ImportError:
     _gw_available = False
 
-# ── App header ────────────────────────────────────────────────────────────────
 h_left, h_right = st.columns([5, 1])
 with h_left:
     st.title("🦙 Gridweave LLM Launcher")
 with h_right:
-    st.write("")  # vertical align
+    st.write("")
     if st.button("Logout", use_container_width=True):
         for k in ["authenticated", "admin_token", "endpoint", "chat_history",
-                  "action_state", "action_log", "action_error", "_result_queue"]:
-            st.session_state[k] = (False if k == "authenticated" else
-                                   "" if k == "admin_token" else
-                                   None if k in ("endpoint", "action_error", "_result_queue") else
-                                   [] if k in ("chat_history", "action_log") else "idle")
+                  "action_state", "action_log", "action_error", "_result_queue",
+                  "gpu_cache", "_gpu_detecting", "_gpu_queue"]:
+            st.session_state[k] = (
+                False  if k == "authenticated" else
+                ""     if k == "admin_token"   else
+                "idle" if k == "action_state"  else
+                None   if k in ("endpoint", "action_error", "_result_queue", "_gpu_queue") else
+                set()  if k == "_gpu_detecting" else
+                {}     if k == "gpu_cache"      else [])
         st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -240,10 +334,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
 
     if _gw_available:
         hdr_col, _, ref_col = st.columns([4, 3, 1])
-        with hdr_col:
-            st.subheader("Your Endpoints")
-        with ref_col:
-            st.button("🔄 Refresh", use_container_width=True)
+        with hdr_col: st.subheader("Your Endpoints")
+        with ref_col: st.button("🔄 Refresh", use_container_width=True)
 
         try:
             eps = _gw.endpoints()
@@ -262,14 +354,18 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 model  = ep_info.get("model", "—")
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
-                host, gpu_name, _ = _hw(ep_info, hw)
+                host, gpu, vendor, vram_gb = _hw(ep_info, hw)
+
+                # Trigger background GPU probe for running endpoints
+                if status == "running" and vendor != "—" and vram_gb:
+                    _start_gpu_detect(vendor, vram_gb)
 
                 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10 = st.columns([3,2,2,2,3,1,1,1,1,1])
                 c1.write(f"**{name}**")
                 c2.write(f"{icon} {status}")
                 c3.write(model.split("/")[-1])
                 c4.write(host)
-                c5.write(gpu_name)
+                c5.write(gpu)
                 c6.write(str(gpus))
 
                 with c7:
@@ -306,14 +402,16 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
                         st.rerun()
+
+            # Auto-refresh while any GPU probe is in flight
+            if st.session_state._gpu_detecting:
+                time.sleep(3); st.rerun()
         else:
             st.info("No endpoints found.")
     else:
         st.info("Deploy a model below to install the SDK and create your first endpoint.")
 
     st.divider()
-
-    # ── Deploy form ───────────────────────────────────────────────────────────
     st.subheader("Deploy New Endpoint")
 
     with st.expander("🔑 Credentials", expanded=False):
@@ -324,11 +422,10 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             hf_token = st.text_input("HuggingFace Token",
                 value="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", type="password")
         with cc2:
-            st.text_input("S3/R2 Endpoint",
-                placeholder="https://<account>.r2.cloudflarestorage.com")
-            st.text_input("S3/R2 Access Key", placeholder="your-access-key-id", type="password")
+            st.text_input("S3/R2 Endpoint",   placeholder="https://<account>.r2.cloudflarestorage.com")
+            st.text_input("S3/R2 Access Key", placeholder="your-access-key-id",     type="password")
             st.text_input("S3/R2 Secret Key", placeholder="your-secret-access-key", type="password")
-            st.text_input("S3/R2 Bucket", placeholder="my-bucket")
+            st.text_input("S3/R2 Bucket",     placeholder="my-bucket")
 
     ma, mb, mc = st.columns(3)
     with ma: model_id      = st.text_input("Model ID",      value="meta-llama/Llama-3.2-1B-Instruct")
@@ -336,7 +433,6 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 
     action = st.session_state.action_state
-
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
             if not st.session_state.admin_token or not hf_token:
@@ -353,18 +449,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     vram=vram, endpoint_name=endpoint_name,
                 ),))
                 st.rerun()
-
     elif action == "busy":
         st.info(st.session_state.action_label)
         st.code("\n".join(st.session_state.action_log) or "Starting…", language=None)
-        time.sleep(2)
-        st.rerun()
-
+        time.sleep(2); st.rerun()
     elif action == "error":
         st.error(f"Failed: {st.session_state.action_error}")
         if st.button("↩ Retry"):
-            st.session_state.action_state = "idle"
-            st.rerun()
+            st.session_state.action_state = "idle"; st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -374,27 +466,31 @@ if st.session_state.endpoint:
     ep = st.session_state.endpoint
     st.divider()
 
-    # Fetch live hardware info for the active endpoint
     try:
-        _active_hw  = _hw_lookup() if _gw_available else {}
-        _ep_info    = {}
+        _active_hw = _hw_lookup() if _gw_available else {}
+        _ep_info   = {}
         for _e in _gw.endpoints():
             if _e.get("name") == ep.name:
                 _ep_info = _e; break
-        _host, _gpu_name, _vendor = _hw(_ep_info, _active_hw)
+        _host, _gpu, _vendor, _vgb = _hw(_ep_info, _active_hw)
         _gpus = _ep_info.get("gpus", ep.gpus)
+        if _vendor != "—" and _vgb:
+            _start_gpu_detect(_vendor, _vgb)
     except Exception:
-        _host, _gpu_name, _vendor, _gpus = "—", ep.vendor or "—", ep.vendor or "—", ep.gpus
+        _host, _gpu, _vendor, _vgb, _gpus = "—", ep.vendor or "—", ep.vendor or "—", 0, ep.gpus
 
-    # ── Compact info bar ──────────────────────────────────────────────────────
     short_model = ep.model.split("/")[-1]
     st.success(f"✅ **{ep.name}**")
     st.caption(
         f"🖥 **Server:** {_host}  &nbsp;·&nbsp;  "
         f"🤖 **Model:** {short_model}  &nbsp;·&nbsp;  "
-        f"⚡ **GPU:** {_gpu_name}  &nbsp;·&nbsp;  "
+        f"⚡ **GPU:** {_gpu}  &nbsp;·&nbsp;  "
         f"🔢 **×{_gpus}**"
     )
+
+    # Refresh while GPU name is still being detected
+    if _gpu == "detecting…":
+        time.sleep(3); st.rerun()
 
     disc_col, _ = st.columns([1, 5])
     with disc_col:
@@ -404,7 +500,6 @@ if st.session_state.endpoint:
             st.rerun()
 
     left, right = st.columns([3, 1])
-
     _is_instruct = "instruct" in ep.model.lower()
 
     with right:
@@ -414,8 +509,7 @@ if st.session_state.endpoint:
         if not _is_instruct:
             st.warning("Base model — completion mode", icon="⚠️")
         if st.button("🗑 Clear chat", use_container_width=True):
-            st.session_state.chat_history = []
-            st.rerun()
+            st.session_state.chat_history = []; st.rerun()
 
     with left:
         st.subheader(f"Chat — {short_model}")
