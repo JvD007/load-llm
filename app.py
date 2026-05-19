@@ -132,6 +132,33 @@ try:
 except ImportError:
     _gw_available = False
 
+
+def _hw_lookup() -> dict:
+    """Build {rayservice_name -> {host, vendor, vram_gb}} from resources()."""
+    try:
+        return {
+            n["node_id"]: {
+                "host":    n.get("host", "—"),
+                "vendor":  n.get("vendor", "—"),
+                "vram_gb": round(max(n.get("per_gpu_vram_mb", {}).values(), default=0) / 1024),
+            }
+            for n in _gw.resources()
+        }
+    except Exception:
+        return {}
+
+
+def _hw(ep_info: dict, lookup: dict) -> tuple[str, str, str]:
+    """Return (host, vendor, vram_label) for an endpoint."""
+    ray = ep_info.get("rayservice_name", "")
+    node = lookup.get(ray, {})
+    host   = node.get("host")   or ep_info.get("node_id", "—").split("-")[-2] or "—"
+    vendor = node.get("vendor") or ep_info.get("vendor", "—")
+    vram_mb = ep_info.get("vram_mb") or 0
+    vram_gb = round(vram_mb / 1024) if vram_mb else (node.get("vram_gb") or 0)
+    vram   = f"{vram_gb} GB" if vram_gb else "—"
+    return host, vendor, vram
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Endpoint Manager
 # ══════════════════════════════════════════════════════════════════════════════
@@ -147,24 +174,33 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
 
         try:
             eps = _gw.endpoints()
+            hw  = _hw_lookup()
         except Exception as e:
-            eps = []; st.warning(f"Could not load endpoints: {e}")
+            eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
         if eps:
+            # header row
+            h1,h2,h3,h4,h5,h6,_,_,_,_ = st.columns([3,2,2,2,2,1,1,1,1,1])
+            h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
+            h4.caption("Server"); h5.caption("GPU"); h6.caption("GPUs")
+
             for ep_info in eps:
                 name   = ep_info.get("name", "")
                 status = ep_info.get("status", "")
                 model  = ep_info.get("model", "—")
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying", "allocating") else "🔴")
+                host, vendor, vram = _hw(ep_info, hw)
 
-                c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([3, 2, 2, 1, 1, 1, 1, 1])
+                c1, c2, c3, c4, c5, c6, c7, c8, c9, c10 = st.columns([3,2,2,2,2,1,1,1,1,1])
                 c1.write(f"**{name}**")
                 c2.write(f"{icon} {status}")
                 c3.write(model.split("/")[-1])
-                c4.write(f"{gpus} GPU")
+                c4.write(f"{host}")
+                c5.write(f"{vendor} · {vram}")
+                c6.write(f"{gpus}")
 
-                with c5:
+                with c7:
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
@@ -176,7 +212,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         )
                         st.session_state.chat_history = []
                         st.rerun()
-                with c6:
+                with c8:
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.stop(name)
@@ -191,7 +227,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             st.session_state.action_error = None
                             _launch(_start_worker, (name,))
                             st.rerun()
-                with c7:
+                with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.delete(name)
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
@@ -265,12 +301,28 @@ if st.session_state.endpoint:
     ep = st.session_state.endpoint
     st.divider()
 
-    c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 2, 2])
+    # Best-effort hardware lookup for the active endpoint
+    try:
+        _active_hw = _hw_lookup() if _gw_available else {}
+        # Reconstruct ep_info dict from the Endpoint object for _hw()
+        _ep_info = {"rayservice_name": getattr(ep, "_rayservice_name", ""),
+                    "node_id": getattr(ep, "_node_id", ""),
+                    "vendor": ep.vendor or "", "vram_mb": getattr(ep, "_vram_mb", 0)}
+        # Pull live info from the endpoints list to get rayservice_name / vram_mb
+        for _e in _gw.endpoints():
+            if _e.get("name") == ep.name:
+                _ep_info.update(_e); break
+        _host, _vendor, _vram = _hw(_ep_info, _active_hw)
+    except Exception:
+        _host, _vendor, _vram = "—", ep.vendor or "—", "—"
+
+    c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 2, 2, 2, 2])
     with c1: st.success(f"✅ Chatting with **{ep.name}**")
     with c2: st.metric("Model",  ep.model.split("/")[-1])
-    with c3: st.metric("GPUs",   ep.gpus)
-    with c4: st.metric("Vendor", ep.vendor or "auto")
-    with c5:
+    with c3: st.metric("Server", _host)
+    with c4: st.metric("GPU",    f"{_vendor} · {_vram}")
+    with c5: st.metric("GPUs",   ep.gpus)
+    with c6:
         if st.button("✖ Disconnect", use_container_width=True):
             st.session_state.endpoint = None
             st.session_state.chat_history = []
