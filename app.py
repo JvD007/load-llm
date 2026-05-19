@@ -20,6 +20,8 @@ for _k, _v in [
     ("endpoint",     None),     # Endpoint object selected for chat
     ("chat_history", []),
     ("_result_queue", None),
+    ("platform_url", "https://platform.gridweave.io"),
+    ("admin_token",  "25d7bcb8f31bb67ef3edfbcd1c15a9d53c2fb1773a23e6abbd5beb2814519ee7"),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -125,6 +127,7 @@ st.title("🦙 Gridweave LLM Launcher")
 
 try:
     import gridweave as _gw
+    _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
     _gw_available = True
 except ImportError:
     _gw_available = False
@@ -207,9 +210,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     with st.expander("🔑 Credentials", expanded=not _gw_available):
         cc1, cc2 = st.columns(2)
         with cc1:
-            platform_url = st.text_input("Platform URL", value="https://platform.gridweave.io")
-            admin_token  = st.text_input("Admin Token",
-                value="25d7bcb8f31bb67ef3edfbcd1c15a9d53c2fb1773a23e6abbd5beb2814519ee7", type="password")
+            platform_url = st.text_input("Platform URL", key="platform_url")
+            admin_token  = st.text_input("Admin Token",  key="admin_token", type="password")
             hf_token     = st.text_input("HuggingFace Token",
                 value="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", type="password")
         with cc2:
