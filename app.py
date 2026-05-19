@@ -7,7 +7,7 @@ import time
 
 import streamlit as st
 
-st.set_page_config(page_title="Gridweave LLM Launcher", page_icon="🦙", layout="wide")
+st.set_page_config(page_title="Groningen University — AI Compute Depot", page_icon="🏛", layout="wide")
 
 WHL_PATH = "/home/jacovandijk/Projects/personal-load-llm/gridweave_sdk-0.2.0-py3-none-any.whl"
 WHL_URL  = "https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-0.2.0-py3-none-any.whl"
@@ -270,14 +270,129 @@ _gpu_poll()
 # LOGIN SCREEN
 # ═════════════════════════════════════════════════════════════════════════════
 if not st.session_state.authenticated:
-    st.title("🦙 Gridweave LLM Launcher")
-    st.divider()
+    st.markdown("""
+<style>
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(ellipse at 50% -10%, #0d2045 0%, #020c1e 55%, #010810 100%);
+}
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stToolbar"] { display: none; }
+#MainMenu, footer { visibility: hidden; }
+
+.depot-wrap { text-align: center; padding-top: 2.5rem; }
+
+.depot-ascii {
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.58rem;
+    line-height: 1.4;
+    color: #29b6f6;
+    text-shadow: 0 0 6px #29b6f6, 0 0 16px #0277bd;
+    white-space: pre;
+    letter-spacing: 0.06em;
+}
+
+.scanline {
+    width: 62%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #29b6f6 20%, #e3f2fd 50%, #29b6f6 80%, transparent);
+    box-shadow: 0 0 10px #29b6f6, 0 0 22px #0277bd;
+    margin: 1.4rem auto 0.8rem auto;
+}
+
+.uni-title {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 2.7rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: #ffffff;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px #29b6f6, 0 0 24px #0277bd, 0 0 55px #01579b;
+    margin: 0.3rem 0 0.15rem 0;
+}
+
+.uni-sub {
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.6em;
+    color: #29b6f6;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px #29b6f6;
+    margin-bottom: 0.4rem;
+    opacity: 0.9;
+}
+
+.access-label {
+    color: #81d4fa;
+    font-size: 0.68rem;
+    letter-spacing: 0.4em;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    margin: 1.2rem 0 0.6rem 0;
+    text-shadow: 0 0 6px #29b6f6;
+}
+
+[data-testid="stTextInput"] > label {
+    color: #81d4fa !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.2em !important;
+    text-transform: uppercase !important;
+    font-family: 'Courier New', monospace !important;
+}
+[data-testid="stTextInput"] input {
+    background: rgba(1, 18, 40, 0.88) !important;
+    border: 1px solid rgba(41, 182, 246, 0.4) !important;
+    color: #e3f2fd !important;
+    border-radius: 4px !important;
+}
+[data-testid="stTextInput"] input:focus {
+    border-color: #29b6f6 !important;
+    box-shadow: 0 0 0 1px rgba(41,182,246,0.55), 0 0 14px rgba(41,182,246,0.22) !important;
+}
+div[data-testid="stButton"] button[kind="primary"] {
+    background: linear-gradient(135deg, #01579b 0%, #0277bd 100%) !important;
+    border: 1px solid #29b6f6 !important;
+    color: #e3f2fd !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.28em !important;
+    text-transform: uppercase !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 18px rgba(41,182,246,0.28) !important;
+}
+div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #0277bd 0%, #0288d1 100%) !important;
+    box-shadow: 0 0 28px rgba(41,182,246,0.48) !important;
+}
+</style>
+
+<div class="depot-wrap">
+  <div class="depot-ascii">
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ║
+║  │░░░░░░░░░░│  │░░░░░░░░░░│  │▓▓▓▓▓▓▓▓▓▓│  │░░░░░░░░░░│  │░░░░░░░░░░│  ║
+║  │  SERVER  │  │  SERVER  │  │   GPU    │  │  SERVER  │  │  SERVER  │  ║
+║  │   RACK   │  │   RACK   │  │ CLUSTER  │  │   RACK   │  │   RACK   │  ║
+║  │ ● ● ● ● │  │ ● ● ● ● │  │ ■ ■ ■ ■ │  │ ● ● ● ● │  │ ● ● ● ● │  ║
+║  │ ○ ○ ○ ○ │  │ ○ ○ ○ ○ │  │ □ □ □ □ │  │ ○ ○ ○ ○ │  │ ○ ○ ○ ○ │  ║
+║  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  ║
+╠═══════╧═════════════╧═════════════╧═════════════╧═════════════╧═════════╣
+║   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ COMPUTE DEPOT PLATFORM ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  ║
+╚══════════════════════════════════════════════════════════════════════════╝</div>
+  <div class="scanline"></div>
+  <div class="uni-title">Groningen University</div>
+  <div class="uni-sub">◈ &nbsp; A I &nbsp; C o m p u t e &nbsp; D e p o t &nbsp; ◈</div>
+</div>
+""", unsafe_allow_html=True)
+
     _, centre, _ = st.columns([1, 2, 1])
     with centre:
-        st.subheader("Sign in")
+        st.markdown('<div class="access-label">⬡ &nbsp; Secure Access Terminal &nbsp; ⬡</div>',
+                    unsafe_allow_html=True)
         platform_url_in = st.text_input("Platform URL", value=st.session_state.platform_url)
         token_in = st.text_input("Admin Token", type="password", placeholder="Enter your admin token")
-        if st.button("Login", type="primary", use_container_width=True):
+        if st.button("⚡  Authenticate", type="primary", use_container_width=True):
             if not token_in.strip():
                 st.error("Please enter your admin token.")
             else:
@@ -345,9 +460,9 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
         if eps:
-            h1,h2,h3,h4,h5,h6,_,_,_,_ = st.columns([3,2,2,2,3,1,1,1,1,1])
+            h1,h2,h3,h4,h5,_,_,_,_ = st.columns([3,2,3,3,1,1,1,1])
             h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
-            h4.caption("Server");   h5.caption("GPU");    h6.caption("×GPU")
+            h4.caption("Server");   h5.caption("×GPU")
 
             for ep_info in eps:
                 name   = ep_info.get("name", "")
@@ -357,19 +472,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
 
-                # Trigger background GPU probe for running endpoints
-                if status == "running" and vendor != "—" and vram_gb:
-                    _start_gpu_detect(vendor, vram_gb)
-
-                c1,c2,c3,c4,c5,c6,c7,c8,c9,c10 = st.columns([3,2,2,2,3,1,1,1,1,1])
+                c1,c2,c3,c4,c5,c6,c7,c8 = st.columns([3,2,3,3,1,1,1,1])
                 c1.write(f"**{name}**")
                 c2.write(f"{icon} {status}")
                 c3.write(model.split("/")[-1])
                 c4.write(host)
-                c5.write(gpu)
-                c6.write(str(gpus))
+                c5.write(str(gpus))
 
-                with c7:
+                with c6:
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
@@ -381,7 +491,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         )
                         st.session_state.chat_history = []
                         st.rerun()
-                with c8:
+                with c7:
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
@@ -399,7 +509,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             _launch(_start_worker, (name, st.session_state.admin_token,
                                                     st.session_state.platform_url))
                             st.rerun()
-                with c9:
+                with c8:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                         _gw.delete(name)
