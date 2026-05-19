@@ -391,10 +391,10 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
         st.markdown('<div class="access-label">⬡ &nbsp; Secure Access Terminal &nbsp; ⬡</div>',
                     unsafe_allow_html=True)
         platform_url_in = st.text_input("Platform URL", value=st.session_state.platform_url)
-        token_in = st.text_input("Admin Token", type="password", placeholder="Enter your admin token")
+        token_in = st.text_input("User Token", type="password", placeholder="Enter your user token")
         if st.button("⚡  Authenticate", type="primary", use_container_width=True):
             if not token_in.strip():
-                st.error("Please enter your admin token.")
+                st.error("Please enter your user token.")
             else:
                 with st.spinner("Verifying…"):
                     try:
@@ -417,6 +417,105 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
 # ═════════════════════════════════════════════════════════════════════════════
 # MAIN UI
 # ═════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(ellipse at 50% 0%, #0a1a35 0%, #020c1e 60%, #010810 100%);
+}
+[data-testid="stHeader"] {
+    background: rgba(1,8,20,0.97) !important;
+    border-bottom: 1px solid rgba(41,182,246,0.18) !important;
+}
+[data-testid="stToolbar"] { display: none; }
+#MainMenu, footer { visibility: hidden; }
+.stApp, .stApp p { color: #cce7ff; }
+h1, h2, h3 { color: #ffffff !important; }
+hr { border-color: rgba(41,182,246,0.2) !important; }
+details[data-testid="stExpander"] {
+    background: rgba(2,15,35,0.75) !important;
+    border: 1px solid rgba(41,182,246,0.22) !important;
+    border-radius: 8px !important;
+}
+details[data-testid="stExpander"] summary { color: #81d4fa !important; font-weight: 600; }
+[data-testid="stTextInput"] > label, [data-testid="stSelectbox"] > label,
+[data-testid="stSlider"] > label {
+    color: #81d4fa !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    font-family: 'Courier New', monospace !important;
+}
+[data-testid="stTextInput"] input {
+    background: rgba(1,15,35,0.9) !important;
+    border: 1px solid rgba(41,182,246,0.38) !important;
+    color: #e3f2fd !important;
+    border-radius: 4px !important;
+}
+[data-testid="stTextInput"] input:focus {
+    border-color: #29b6f6 !important;
+    box-shadow: 0 0 0 1px rgba(41,182,246,0.5), 0 0 10px rgba(41,182,246,0.15) !important;
+}
+[data-testid="stSelectbox"] > div > div {
+    background: rgba(1,15,35,0.9) !important;
+    border: 1px solid rgba(41,182,246,0.38) !important;
+    color: #e3f2fd !important;
+    border-radius: 4px !important;
+}
+div[data-testid="stButton"] button[kind="primary"] {
+    background: linear-gradient(135deg, #01579b 0%, #0277bd 100%) !important;
+    border: 1px solid #29b6f6 !important;
+    color: #e3f2fd !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.15em !important;
+    text-transform: uppercase !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 14px rgba(41,182,246,0.22) !important;
+}
+div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #0277bd 0%, #039be5 100%) !important;
+    box-shadow: 0 0 22px rgba(41,182,246,0.4) !important;
+}
+div[data-testid="stButton"] button[kind="secondary"] {
+    background: rgba(1,25,55,0.8) !important;
+    border: 1px solid rgba(41,182,246,0.32) !important;
+    color: #81d4fa !important;
+    border-radius: 4px !important;
+}
+div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background: rgba(2,45,90,0.9) !important;
+    border-color: #29b6f6 !important;
+    color: #e3f2fd !important;
+}
+[data-testid="stAlert"] {
+    background: rgba(1,25,55,0.85) !important;
+    border-radius: 0 6px 6px 0 !important;
+}
+[data-testid="stAlert"] p { color: #e3f2fd !important; }
+[data-testid="stCode"] code, [data-testid="stCode"] pre {
+    background: rgba(1,10,22,0.95) !important;
+    color: #81d4fa !important;
+    border: 1px solid rgba(41,182,246,0.18) !important;
+    border-radius: 4px !important;
+}
+[data-testid="stCaptionContainer"] p { color: #81d4fa !important; }
+[data-testid="stChatMessage"] {
+    background: rgba(1,15,35,0.65) !important;
+    border: 1px solid rgba(41,182,246,0.12) !important;
+    border-radius: 10px !important;
+}
+[data-testid="stChatInputContainer"] textarea {
+    background: rgba(1,15,35,0.9) !important;
+    border: 1px solid rgba(41,182,246,0.38) !important;
+    color: #e3f2fd !important;
+    border-radius: 4px !important;
+}
+[data-testid="stChatInputContainer"] textarea:focus {
+    border-color: #29b6f6 !important;
+    box-shadow: 0 0 0 1px rgba(41,182,246,0.5) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 try:
     import gridweave as _gw
     _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
@@ -426,7 +525,16 @@ except ImportError:
 
 h_left, h_right = st.columns([5, 1])
 with h_left:
-    st.title("🦙 Gridweave LLM Launcher")
+    st.markdown("""
+<div style="padding:0.4rem 0 0.2rem 0;">
+  <span style="font-size:1.7rem;font-weight:900;letter-spacing:0.15em;color:#fff;
+               text-shadow:0 0 8px #29b6f6,0 0 22px #0277bd;text-transform:uppercase;
+               font-family:'Segoe UI',Arial,sans-serif;">🏛 Groningen University</span>
+  <span style="font-size:0.65rem;letter-spacing:0.4em;color:#29b6f6;
+               font-family:'Courier New',monospace;text-transform:uppercase;
+               margin-left:1.2rem;text-shadow:0 0 6px #29b6f6;vertical-align:middle;">
+    AI Compute Depot</span>
+</div>""", unsafe_allow_html=True)
 with h_right:
     st.write("")
     if st.button("Logout", use_container_width=True):
@@ -548,7 +656,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
             if not st.session_state.admin_token or not hf_token:
-                st.error("Admin Token and HuggingFace Token are required.")
+                st.error("User Token and HuggingFace Token are required.")
             else:
                 st.session_state.action_state = "busy"
                 st.session_state.action_label = f"Deploying {model_id}…"
