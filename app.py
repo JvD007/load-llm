@@ -1,4 +1,5 @@
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -13,21 +14,69 @@ WHL_URL  = "https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweav
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for _k, _v in [
-    ("action_state", "idle"),   # idle | busy | error
-    ("action_label", ""),
-    ("action_log",   []),
-    ("action_error", None),
-    ("endpoint",     None),     # Endpoint object selected for chat
-    ("chat_history", []),
-    ("_result_queue", None),
-    ("platform_url", "https://platform.gridweave.io"),
-    ("admin_token",  "25d7bcb8f31bb67ef3edfbcd1c15a9d53c2fb1773a23e6abbd5beb2814519ee7"),
+    ("authenticated",  False),
+    ("admin_token",    ""),
+    ("platform_url",   "https://platform.gridweave.io"),
+    ("action_state",   "idle"),
+    ("action_label",   ""),
+    ("action_log",     []),
+    ("action_error",   None),
+    ("endpoint",       None),
+    ("chat_history",   []),
+    ("_result_queue",  None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
 
-# ── Background helpers ────────────────────────────────────────────────────────
+# ── GPU model inference (vendor + VRAM → likely model name) ──────────────────
+def _infer_gpu(vendor: str, vram_gb: int) -> str:
+    v = vendor.upper()
+    if v == "NVIDIA":
+        if vram_gb >= 78: return "A100 / H100 80 GB"
+        if vram_gb >= 46: return "A6000 48 GB"
+        if vram_gb >= 38: return "A100 40 GB"
+        if vram_gb >= 20: return "RTX 3090 / 4090 24 GB"
+        if vram_gb >= 15: return "RTX 4080 16 GB"
+        if vram_gb >= 11: return "RTX 3080 Ti 12 GB"
+        return f"NVIDIA {vram_gb} GB"
+    if v == "AMD":
+        if vram_gb >= 23: return "RX 7900 XTX 24 GB"
+        if vram_gb >= 19: return "RX 7900 XT 20 GB"
+        if vram_gb >= 15: return "RX 6800 XT 16 GB"
+        return f"AMD {vram_gb} GB"
+    return f"{vendor} {vram_gb} GB"
+
+
+# ── Hardware helpers ──────────────────────────────────────────────────────────
+def _hw_lookup() -> dict:
+    try:
+        import gridweave as _gw
+        return {
+            n["node_id"]: {
+                "host":    n.get("host", "—"),
+                "vendor":  n.get("vendor", "—"),
+                "vram_gb": round(max(n.get("per_gpu_vram_mb", {}).values(), default=0) / 1024),
+            }
+            for n in _gw.resources()
+        }
+    except Exception:
+        return {}
+
+
+def _hw(ep_info: dict, lookup: dict) -> tuple[str, str, str]:
+    """Return (host, gpu_model, vendor) for an endpoint."""
+    ray     = ep_info.get("rayservice_name", "")
+    node    = lookup.get(ray, {})
+    host    = node.get("host")   or "—"
+    vendor  = node.get("vendor") or ep_info.get("vendor", "—")
+    vram_mb = ep_info.get("vram_mb") or 0
+    vram_gb = round(vram_mb / 1024) if vram_mb else (node.get("vram_gb") or 0)
+    gpu     = _infer_gpu(vendor, vram_gb) if vram_gb else f"{vendor}"
+    return host, gpu, vendor
+
+
+# ── Background install / deploy / start workers ───────────────────────────────
 def _install_deps():
     import os, urllib.request
     if not os.path.exists(WHL_PATH):
@@ -47,7 +96,6 @@ def _install_deps():
 
 
 class _Tee:
-    """Forwards SDK print() lines into the result queue."""
     def __init__(self, orig, q): self._orig, self._q = orig, q
     def write(self, s):
         self._orig.write(s); self._orig.flush()
@@ -61,7 +109,6 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         _install_deps()
         import importlib, gridweave
         importlib.reload(gridweave)
-        q.put(("log", f"Authenticating with {cfg['platform_url']}…"))
         gridweave.auth(cfg["admin_token"], platform_url=cfg["platform_url"])
         q.put(("log", f"Deploying {cfg['model_id']} ({cfg['vram']}) as '{cfg['endpoint_name']}'…"))
         old = sys.stdout; sys.stdout = _Tee(old, q)
@@ -77,9 +124,10 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         q.put(("error", str(exc)))
 
 
-def _start_worker(name: str, q: queue.Queue):
+def _start_worker(name: str, admin_token: str, platform_url: str, q: queue.Queue):
     try:
         import gridweave
+        gridweave.auth(admin_token, platform_url=platform_url)
         q.put(("log", f"Starting '{name}'…"))
         old = sys.stdout; sys.stdout = _Tee(old, q)
         try:
@@ -98,7 +146,7 @@ def _launch(target, args):
     threading.Thread(target=target, args=(*args, q), daemon=True).start()
 
 
-# ── Poll queue on every rerun ─────────────────────────────────────────────────
+# ── Poll result queue ─────────────────────────────────────────────────────────
 def _poll():
     q = st.session_state._result_queue
     if q is None:
@@ -122,9 +170,47 @@ def _poll():
 
 _poll()
 
-# ── UI ────────────────────────────────────────────────────────────────────────
-st.title("🦙 Gridweave LLM Launcher")
+# ═════════════════════════════════════════════════════════════════════════════
+# LOGIN SCREEN
+# ═════════════════════════════════════════════════════════════════════════════
+if not st.session_state.authenticated:
+    st.title("🦙 Gridweave LLM Launcher")
+    st.divider()
 
+    _, centre, _ = st.columns([1, 2, 1])
+    with centre:
+        st.subheader("Sign in")
+        platform_url_in = st.text_input(
+            "Platform URL", value=st.session_state.platform_url)
+        token_in = st.text_input(
+            "Admin Token", type="password", placeholder="Enter your admin token")
+
+        if st.button("Login", type="primary", use_container_width=True):
+            if not token_in.strip():
+                st.error("Please enter your admin token.")
+            else:
+                with st.spinner("Verifying…"):
+                    try:
+                        import gridweave as _gw_check
+                        _gw_check.auth(token_in.strip(), platform_url=platform_url_in)
+                        _gw_check.endpoints()   # verify the token actually works
+                        st.session_state.admin_token   = token_in.strip()
+                        st.session_state.platform_url  = platform_url_in
+                        st.session_state.authenticated = True
+                        st.rerun()
+                    except ImportError:
+                        # SDK not installed yet — accept token, install happens on first deploy
+                        st.session_state.admin_token   = token_in.strip()
+                        st.session_state.platform_url  = platform_url_in
+                        st.session_state.authenticated = True
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Authentication failed: {e}")
+    st.stop()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MAIN UI  (only reached when authenticated)
+# ═════════════════════════════════════════════════════════════════════════════
 try:
     import gridweave as _gw
     _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
@@ -132,45 +218,32 @@ try:
 except ImportError:
     _gw_available = False
 
-
-def _hw_lookup() -> dict:
-    """Build {rayservice_name -> {host, vendor, vram_gb}} from resources()."""
-    try:
-        return {
-            n["node_id"]: {
-                "host":    n.get("host", "—"),
-                "vendor":  n.get("vendor", "—"),
-                "vram_gb": round(max(n.get("per_gpu_vram_mb", {}).values(), default=0) / 1024),
-            }
-            for n in _gw.resources()
-        }
-    except Exception:
-        return {}
-
-
-def _hw(ep_info: dict, lookup: dict) -> tuple[str, str, str]:
-    """Return (host, vendor, vram_label) for an endpoint."""
-    ray = ep_info.get("rayservice_name", "")
-    node = lookup.get(ray, {})
-    host   = node.get("host")   or ep_info.get("node_id", "—").split("-")[-2] or "—"
-    vendor = node.get("vendor") or ep_info.get("vendor", "—")
-    vram_mb = ep_info.get("vram_mb") or 0
-    vram_gb = round(vram_mb / 1024) if vram_mb else (node.get("vram_gb") or 0)
-    vram   = f"{vram_gb} GB" if vram_gb else "—"
-    return host, vendor, vram
+# ── App header ────────────────────────────────────────────────────────────────
+h_left, h_right = st.columns([5, 1])
+with h_left:
+    st.title("🦙 Gridweave LLM Launcher")
+with h_right:
+    st.write("")  # vertical align
+    if st.button("Logout", use_container_width=True):
+        for k in ["authenticated", "admin_token", "endpoint", "chat_history",
+                  "action_state", "action_log", "action_error", "_result_queue"]:
+            st.session_state[k] = (False if k == "authenticated" else
+                                   "" if k == "admin_token" else
+                                   None if k in ("endpoint", "action_error", "_result_queue") else
+                                   [] if k in ("chat_history", "action_log") else "idle")
+        st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Endpoint Manager
 # ══════════════════════════════════════════════════════════════════════════════
 with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is None)):
 
-    # ── Endpoints list ────────────────────────────────────────────────────────
     if _gw_available:
-        hdr, _, ref_col = st.columns([4, 3, 1])
-        with hdr:
+        hdr_col, _, ref_col = st.columns([4, 3, 1])
+        with hdr_col:
             st.subheader("Your Endpoints")
         with ref_col:
-            do_refresh = st.button("🔄 Refresh", use_container_width=True)
+            st.button("🔄 Refresh", use_container_width=True)
 
         try:
             eps = _gw.endpoints()
@@ -179,26 +252,25 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
         if eps:
-            # header row
-            h1,h2,h3,h4,h5,h6,_,_,_,_ = st.columns([3,2,2,2,2,1,1,1,1,1])
+            h1,h2,h3,h4,h5,h6,_,_,_,_ = st.columns([3,2,2,2,3,1,1,1,1,1])
             h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
-            h4.caption("Server"); h5.caption("GPU"); h6.caption("GPUs")
+            h4.caption("Server");   h5.caption("GPU");    h6.caption("×GPU")
 
             for ep_info in eps:
                 name   = ep_info.get("name", "")
                 status = ep_info.get("status", "")
                 model  = ep_info.get("model", "—")
                 gpus   = ep_info.get("gpus", "?")
-                icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying", "allocating") else "🔴")
-                host, vendor, vram = _hw(ep_info, hw)
+                icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
+                host, gpu_name, _ = _hw(ep_info, hw)
 
-                c1, c2, c3, c4, c5, c6, c7, c8, c9, c10 = st.columns([3,2,2,2,2,1,1,1,1,1])
+                c1,c2,c3,c4,c5,c6,c7,c8,c9,c10 = st.columns([3,2,2,2,3,1,1,1,1,1])
                 c1.write(f"**{name}**")
                 c2.write(f"{icon} {status}")
                 c3.write(model.split("/")[-1])
-                c4.write(f"{host}")
-                c5.write(f"{vendor} · {vram}")
-                c6.write(f"{gpus}")
+                c4.write(host)
+                c5.write(gpu_name)
+                c6.write(str(gpus))
 
                 with c7:
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
@@ -223,9 +295,10 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         if st.button("Start", key=f"start_{name}", use_container_width=True):
                             st.session_state.action_state = "busy"
                             st.session_state.action_label = f"Starting '{name}'…"
-                            st.session_state.action_log = []
+                            st.session_state.action_log   = []
                             st.session_state.action_error = None
-                            _launch(_start_worker, (name,))
+                            _launch(_start_worker, (name, st.session_state.admin_token,
+                                                    st.session_state.platform_url))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
@@ -243,31 +316,32 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     # ── Deploy form ───────────────────────────────────────────────────────────
     st.subheader("Deploy New Endpoint")
 
-    with st.expander("🔑 Credentials", expanded=not _gw_available):
+    with st.expander("🔑 Credentials", expanded=False):
         cc1, cc2 = st.columns(2)
         with cc1:
-            platform_url = st.text_input("Platform URL", key="platform_url")
-            admin_token  = st.text_input("Admin Token",  key="admin_token", type="password")
-            hf_token     = st.text_input("HuggingFace Token",
+            st.text_input("Platform URL", key="platform_url")
+            st.text_input("Admin Token",  key="admin_token", type="password")
+            hf_token = st.text_input("HuggingFace Token",
                 value="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", type="password")
         with cc2:
             st.text_input("R2 Endpoint",
                 value="https://d97bc2f3151f58bc38c26d9da78c21e9.r2.cloudflarestorage.com")
             st.text_input("R2 Access Key", value="06506278cfb40d0777bd9d2f0d63076b", type="password")
             st.text_input("R2 Secret Key",
-                value="28f84de15ee32e539a6f21020d413cec7cc57398968e11fbc3efbb2978889026", type="password")
+                value="28f84de15ee32e539a6f21020d413cec7cc57398968e11fbc3efbb2978889026",
+                type="password")
             st.text_input("R2 Bucket", value="gridweave")
 
     ma, mb, mc = st.columns(3)
-    with ma: model_id      = st.text_input("Model ID",       value="meta-llama/Llama-3.2-1B-Instruct")
-    with mb: vram          = st.selectbox("VRAM", ["4GB", "8GB", "16GB", "24GB", "40GB", "80GB"])
-    with mc: endpoint_name = st.text_input("Endpoint Name",  value="llama-eric")
+    with ma: model_id      = st.text_input("Model ID",      value="meta-llama/Llama-3.2-1B-Instruct")
+    with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
+    with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 
     action = st.session_state.action_state
 
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
-            if not admin_token or not hf_token:
+            if not st.session_state.admin_token or not hf_token:
                 st.error("Admin Token and HuggingFace Token are required.")
             else:
                 st.session_state.action_state = "busy"
@@ -275,9 +349,10 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 st.session_state.action_log   = []
                 st.session_state.action_error = None
                 _launch(_deploy_worker, (dict(
-                    platform_url=platform_url, admin_token=admin_token,
-                    hf_token=hf_token, model_id=model_id, vram=vram,
-                    endpoint_name=endpoint_name,
+                    platform_url=st.session_state.platform_url,
+                    admin_token=st.session_state.admin_token,
+                    hf_token=hf_token, model_id=model_id,
+                    vram=vram, endpoint_name=endpoint_name,
                 ),))
                 st.rerun()
 
@@ -301,28 +376,30 @@ if st.session_state.endpoint:
     ep = st.session_state.endpoint
     st.divider()
 
-    # Best-effort hardware lookup for the active endpoint
+    # Fetch live hardware info for the active endpoint
     try:
-        _active_hw = _hw_lookup() if _gw_available else {}
-        # Reconstruct ep_info dict from the Endpoint object for _hw()
-        _ep_info = {"rayservice_name": getattr(ep, "_rayservice_name", ""),
-                    "node_id": getattr(ep, "_node_id", ""),
-                    "vendor": ep.vendor or "", "vram_mb": getattr(ep, "_vram_mb", 0)}
-        # Pull live info from the endpoints list to get rayservice_name / vram_mb
+        _active_hw  = _hw_lookup() if _gw_available else {}
+        _ep_info    = {}
         for _e in _gw.endpoints():
             if _e.get("name") == ep.name:
-                _ep_info.update(_e); break
-        _host, _vendor, _vram = _hw(_ep_info, _active_hw)
+                _ep_info = _e; break
+        _host, _gpu_name, _vendor = _hw(_ep_info, _active_hw)
+        _gpus = _ep_info.get("gpus", ep.gpus)
     except Exception:
-        _host, _vendor, _vram = "—", ep.vendor or "—", "—"
+        _host, _gpu_name, _vendor, _gpus = "—", ep.vendor or "—", ep.vendor or "—", ep.gpus
 
-    c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 2, 2, 2, 2])
-    with c1: st.success(f"✅ Chatting with **{ep.name}**")
-    with c2: st.metric("Model",  ep.model.split("/")[-1])
-    with c3: st.metric("Server", _host)
-    with c4: st.metric("GPU",    f"{_vendor} · {_vram}")
-    with c5: st.metric("GPUs",   ep.gpus)
-    with c6:
+    # ── Compact info bar ──────────────────────────────────────────────────────
+    short_model = ep.model.split("/")[-1]
+    st.success(f"✅ **{ep.name}**")
+    st.caption(
+        f"🖥 **Server:** {_host}  &nbsp;·&nbsp;  "
+        f"🤖 **Model:** {short_model}  &nbsp;·&nbsp;  "
+        f"⚡ **GPU:** {_gpu_name}  &nbsp;·&nbsp;  "
+        f"🔢 **×{_gpus}**"
+    )
+
+    disc_col, _ = st.columns([1, 5])
+    with disc_col:
         if st.button("✖ Disconnect", use_container_width=True):
             st.session_state.endpoint = None
             st.session_state.chat_history = []
@@ -330,8 +407,6 @@ if st.session_state.endpoint:
 
     left, right = st.columns([3, 1])
 
-    # Base models (no "instruct" in name) don't understand chat format —
-    # use generate() with a plain Q&A prompt instead.
     _is_instruct = "instruct" in ep.model.lower()
 
     with right:
@@ -339,19 +414,19 @@ if st.session_state.endpoint:
         max_tokens  = st.slider("Max tokens",  64, 2048, 512, step=64)
         temperature = st.slider("Temperature", 0.0, 2.0,  0.7, step=0.05)
         if not _is_instruct:
-            st.warning("Base model detected — using completion mode.", icon="⚠️")
+            st.warning("Base model — completion mode", icon="⚠️")
         if st.button("🗑 Clear chat", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
 
     with left:
-        st.subheader(f"Chat — {ep.model.split('/')[-1]}")
+        st.subheader(f"Chat — {short_model}")
 
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
 
-        if prompt := st.chat_input(f"Message {ep.model.split('/')[-1]}…"):
+        if prompt := st.chat_input(f"Message {short_model}…"):
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.write(prompt)
@@ -365,15 +440,12 @@ if st.session_state.endpoint:
                                 max_tokens=max_tokens, temperature=temperature,
                             )
                         else:
-                            import re
-                            # Build a plain Q&A prompt; base models don't follow chat format
                             prompt_text = "\n".join(
                                 f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
                                 for m in st.session_state.chat_history
                             ) + "\nAssistant:"
                             raw = ep.generate(prompt_text, max_tokens=max_tokens,
                                               temperature=temperature)
-                            # Strip the looping repetition base models produce
                             response = re.split(r"\n(User|Assistant):", raw)[0].strip()
                     except Exception as exc:
                         response = f"⚠️ Error: {exc}"
