@@ -74,6 +74,7 @@ if st.button("🚀 Deploy Model", type="primary", use_container_width=True):
                     [
                         sys.executable, "-m", "pip", "install",
                         "--quiet", "--force-reinstall", "--no-deps",
+                        "--break-system-packages",
                         whl_path,
                     ],
                     capture_output=True,
