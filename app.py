@@ -45,8 +45,8 @@ def _gpu_name(vendor: str, vram_gb: int) -> str:
         if vram_gb >= 78: return "A100 / H100 80 GB"
         if vram_gb >= 46: return "A6000 48 GB"
         if vram_gb >= 38: return "A100 40 GB"
-        if vram_gb >= 20: return "RTX 3090 / 4090 24 GB"
-        if vram_gb >= 15: return "RTX 4080 16 GB"
+        if vram_gb >= 20: return f"NVIDIA {vram_gb} GB"   # e.g. RTX 5000 / 3090 / 4090 — detection confirms
+        if vram_gb >= 15: return "RTX 4080 / A4000 16 GB"
         if vram_gb >= 11: return "RTX 3080 Ti 12 GB"
         return f"NVIDIA {vram_gb} GB"
     if v == "AMD":
@@ -338,6 +338,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         with ref_col: st.button("🔄 Refresh", use_container_width=True)
 
         try:
+            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
             eps = _gw.endpoints()
             hw  = _hw_lookup()
         except Exception as e:
@@ -383,12 +384,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 with c8:
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
+                            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                             _gw.stop(name)
                             if st.session_state.endpoint and st.session_state.endpoint.name == name:
                                 st.session_state.endpoint = None
                             st.rerun()
                     elif status == "stopped":
                         if st.button("Start", key=f"start_{name}", use_container_width=True):
+                            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                             st.session_state.action_state = "busy"
                             st.session_state.action_label = f"Starting '{name}'…"
                             st.session_state.action_log   = []
@@ -398,6 +401,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
+                        _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                         _gw.delete(name)
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
