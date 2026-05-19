@@ -421,8 +421,6 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     with st.expander("🔑 Credentials", expanded=False):
         cc1, cc2 = st.columns(2)
         with cc1:
-            st.text_input("Platform URL", key="platform_url")
-            st.text_input("Admin Token",  key="admin_token", type="password")
             hf_token = st.text_input("HuggingFace Token",
                 value="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", type="password")
         with cc2:
