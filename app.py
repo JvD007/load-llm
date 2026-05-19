@@ -568,7 +568,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
         if eps:
-            h1,h2,h3,h4,h5,_,_,_,_ = st.columns([3,2,3,3,1,1,1,1])
+            h1,h2,h3,h4,h5,_,_,_ = st.columns([3,2,3,3,1,1,1,1])
             h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
             h4.caption("Server");   h5.caption("×GPU")
 
