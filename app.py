@@ -324,13 +324,13 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             hf_token = st.text_input("HuggingFace Token",
                 value="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", type="password")
         with cc2:
-            st.text_input("R2 Endpoint",
+            st.text_input("S3/R2 Endpoint",
                 value="https://d97bc2f3151f58bc38c26d9da78c21e9.r2.cloudflarestorage.com")
-            st.text_input("R2 Access Key", value="06506278cfb40d0777bd9d2f0d63076b", type="password")
-            st.text_input("R2 Secret Key",
+            st.text_input("S3/R2 Access Key", value="06506278cfb40d0777bd9d2f0d63076b", type="password")
+            st.text_input("S3/R2 Secret Key",
                 value="28f84de15ee32e539a6f21020d413cec7cc57398968e11fbc3efbb2978889026",
                 type="password")
-            st.text_input("R2 Bucket", value="gridweave")
+            st.text_input("S3/R2 Bucket", value="gridweave")
 
     ma, mb, mc = st.columns(3)
     with ma: model_id      = st.text_input("Model ID",      value="meta-llama/Llama-3.2-1B-Instruct")
