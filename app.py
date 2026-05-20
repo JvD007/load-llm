@@ -113,6 +113,25 @@ class _Tee:
     def flush(self): self._orig.flush()
 
 
+def _friendly_error(raw: str) -> str:
+    r = raw.lower()
+    if "expired" in r and ("token" in r or "access" in r):
+        return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
+    if "401" in r or "unauthorized" in r:
+        return "HuggingFace authentication failed. Check that your token is valid and has read access."
+    if "repositorynotfounderror" in r or ("repository not found" in r):
+        return "Model not found on HuggingFace. Check the Model ID is correct and that your token has access to it."
+    if "403" in r or "forbidden" in r:
+        return "Access denied by HuggingFace. Your token may not have permission to access this model."
+    if "failed to deploy" in r and "3 times" in r:
+        return "The endpoint failed to start. This is usually caused by an invalid HuggingFace token or a model ID that requires special access."
+    if "insufficient" in r and "credit" in r:
+        return "Insufficient credits on your GridWeave account."
+    if "sdk install failed" in r:
+        return "Failed to install the GridWeave SDK. Please check your internet connection and try again."
+    return raw
+
+
 def _deploy_worker(cfg: dict, q: queue.Queue):
     try:
         q.put(("log", "Installing SDK…"))
@@ -131,7 +150,7 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
             sys.stdout = old
         q.put(("done", ep))
     except Exception as exc:
-        q.put(("error", str(exc)))
+        q.put(("error", _friendly_error(str(exc))))
 
 
 def _start_worker(name: str, admin_token: str, platform_url: str, q: queue.Queue):
@@ -731,7 +750,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         st.code("\n".join(st.session_state.action_log) or "Starting…", language=None)
         time.sleep(2); st.rerun()
     elif action == "error":
-        st.error(f"Failed: {st.session_state.action_error}")
+        st.error(st.session_state.action_error)
         if st.button("↩ Retry"):
             st.session_state.action_state = "idle"; st.rerun()
 
