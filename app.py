@@ -1,3 +1,4 @@
+import os
 import queue
 import re
 import subprocess
@@ -9,7 +10,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Groningen University — AI Compute Depot", page_icon="🏛", layout="wide")
 
-WHL_PATH = "/home/jacovandijk/Projects/personal-load-llm/gridweave_sdk-0.2.0-py3-none-any.whl"
+WHL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gridweave_sdk-0.2.0-py3-none-any.whl")
 WHL_URL  = "https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-0.2.0-py3-none-any.whl"
 
 # ── Session state ─────────────────────────────────────────────────────────────
