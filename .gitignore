@@ -1,2 +1,17 @@
+# Python
 *.whl
 __pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environment
+.venv/
+
+# Streamlit
+.streamlit/
+
+# Claude
+.claude/
+
+# OS
+.DS_Store
