@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-05-20
+### Added
+- Release notes section to README
+
 ## [1.3.0] — 2026-05-20
 ### Added
 - `CONTRIBUTORS.md` listing project authors
