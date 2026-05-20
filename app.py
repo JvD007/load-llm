@@ -731,8 +731,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     action = st.session_state.action_state
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
-            if not st.session_state.admin_token or not hf_token:
-                st.error("User Token and HuggingFace Token are required.")
+            if not hf_token:
+                st.error("Please enter your HuggingFace token in the Credentials section.")
             else:
                 st.session_state.action_state = "busy"
                 st.session_state.action_label = f"Deploying {model_id}…"
