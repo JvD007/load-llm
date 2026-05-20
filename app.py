@@ -769,8 +769,6 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
             if not source:
                 st.error("Please select a model source (HuggingFace or S3/R2) in the Credentials section.")
-            elif use_hf and not hf_token:
-                st.error("Please enter your HuggingFace token in the Credentials section.")
             elif use_s3 and not s3_endpoint:
                 st.error("Please enter your S3/R2 endpoint in the Credentials section.")
             else:
