@@ -146,13 +146,18 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         q.put(("log", f"Deploying {cfg['model_id']} ({cfg['vram']}) as '{cfg['endpoint_name']}'…"))
         old = sys.stdout; sys.stdout = _Tee(old, q)
         try:
-            ep = gridweave.serve(
-                model=cfg["model_id"], hf_token=cfg["hf_token"],
-                s3_endpoint=cfg.get("s3_endpoint", ""),
-                s3_access_key=cfg.get("s3_access_key", ""),
-                s3_secret_key=cfg.get("s3_secret_key", ""),
-                vram=cfg["vram"], name=cfg["endpoint_name"],
+            serve_kwargs = dict(
+                model=cfg["model_id"],
+                vram=cfg["vram"],
+                name=cfg["endpoint_name"],
             )
+            if cfg.get("hf_token"):
+                serve_kwargs["hf_token"] = cfg["hf_token"]
+            if cfg.get("s3_endpoint"):
+                serve_kwargs["s3_endpoint"]   = cfg["s3_endpoint"]
+                serve_kwargs["s3_access_key"] = cfg.get("s3_access_key", "")
+                serve_kwargs["s3_secret_key"] = cfg.get("s3_secret_key", "")
+            ep = gridweave.serve(**serve_kwargs)
         finally:
             sys.stdout = old
         q.put(("done", ep))
