@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-05-20
+### Changed
+- Updated README release notes to include v1.4.0
+- Updated CHANGELOG for v1.4.0
+
 ## [1.4.0] — 2026-05-20
 ### Added
 - `SECURITY.md` with vulnerability reporting policy
