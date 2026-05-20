@@ -76,6 +76,11 @@ sudo journalctl -u gridweave-depot -f
 
 ## Release notes
 
+### v1.4.0 — 2026-05-20
+- Added `SECURITY.md` with vulnerability reporting policy
+- Added `CODE_OF_CONDUCT.md` based on Contributor Covenant v2.1
+- Added `CONTRIBUTING.md` with setup, workflow and PR guidelines
+
 ### v1.3.0 — 2026-05-20
 - Added `deploy.sh` with `--install-hook` flag for auto-deploy on push
 - Added pre-push git hook (`hooks/pre-push`)
