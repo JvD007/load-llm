@@ -725,13 +725,11 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             ["🤗 HuggingFace", "📦 S3/R2 (own LLMs)"],
             index=None,
             horizontal=True,
+            key="model_source",
             help="Choose where to load the model from. Select HuggingFace for public or gated models, or S3/R2 if you host your own pre-downloaded models.",
         )
         use_hf = source == "🤗 HuggingFace"
         use_s3 = source == "📦 S3/R2 (own LLMs)"
-
-        if not use_hf:
-            st.session_state["hf_token_input"] = ""
 
         cc1, cc2 = st.columns(2)
         with cc1:
