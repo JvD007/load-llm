@@ -696,7 +696,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         cc1, cc2 = st.columns(2)
         with cc1:
             hf_token = st.text_input("HuggingFace Token",
-                value="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", type="password")
+                value="", type="password")
         with cc2:
             st.text_input("S3/R2 Endpoint",   placeholder="https://<account>.r2.cloudflarestorage.com")
             st.text_input("S3/R2 Access Key", placeholder="your-access-key-id",     type="password")
