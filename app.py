@@ -116,13 +116,17 @@ class _Tee:
 def _friendly_error(raw: str) -> str:
     r = raw.lower()
     if "expired" in r and ("token" in r or "access" in r):
-        return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
+        if "huggingface" in r or "hf_token" in r:
+            return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
+        return "Your GridWeave session has expired. Please log out and log in again."
     if "401" in r or "unauthorized" in r:
-        return (
-            "This model requires a HuggingFace token. "
-            "Open Credentials, select HuggingFace, and enter a valid token. "
-            "For gated models (e.g. Llama) also accept the license on the model's HuggingFace page."
-        )
+        if "huggingface" in r or "hf_token" in r or "hf-token" in r:
+            return (
+                "This model requires a HuggingFace token. "
+                "Open Credentials and enter a valid HuggingFace token. "
+                "For gated models (e.g. Llama) also accept the license on the model's HuggingFace page."
+            )
+        return "Authentication failed. Your GridWeave session may have expired — please log out and log in again."
     if "repositorynotfounderror" in r or ("repository not found" in r):
         return "Model not found on HuggingFace. Check the Model ID is correct and that your token has access to it."
     if "403" in r or "forbidden" in r:
