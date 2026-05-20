@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # deploy.sh — Update and restart the Groningen University AI Compute Depot
-# Usage: sudo bash deploy.sh
+# Usage: sudo bash deploy.sh [--install-hook]
+#   --install-hook  Install the pre-push git hook for auto-deploy on push
 
 set -euo pipefail
 
@@ -8,8 +9,19 @@ APP_DIR="/opt/gridweave-depot"
 APP_NAME="gridweave-depot"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Install git hook if requested (does not require root)
+if [[ "${1:-}" == "--install-hook" ]]; then
+    HOOK_SRC="${SCRIPT_DIR}/hooks/pre-push"
+    HOOK_DST="${SCRIPT_DIR}/.git/hooks/pre-push"
+    cp "${HOOK_SRC}" "${HOOK_DST}"
+    chmod +x "${HOOK_DST}"
+    echo "==> pre-push hook installed. Auto-deploy will run on: git push origin main"
+    exit 0
+fi
+
 if [[ $EUID -ne 0 ]]; then
     echo "ERROR: Run with sudo: sudo bash deploy.sh"
+    echo "       To install the git hook: bash deploy.sh --install-hook"
     exit 1
 fi
 
