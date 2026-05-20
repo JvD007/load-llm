@@ -412,6 +412,14 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
                         st.rerun()
                     except Exception as e:
                         st.error(f"Authentication failed: {e}")
+
+    st.markdown("""
+<div style="text-align:center;margin-top:2.5rem;color:#4a7a9b;
+            font-family:'Courier New',monospace;font-size:0.62rem;
+            letter-spacing:0.08em;opacity:0.75;">
+    With support of Dell Technologies, GridWeave and Groningen University CIT
+</div>
+""", unsafe_allow_html=True)
     st.stop()
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -567,12 +575,24 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         except Exception as e:
             eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
-        if eps:
-            h1,h2,h3,h4,h5,_,_,_ = st.columns([3,2,3,3,1,1,1,1])
+        # Split into own vs others by user-id prefix in the qualified name
+        try:
+            from gridweave.auth import get_user_id as _get_uid
+            _uid = _get_uid()
+        except Exception:
+            _uid = None
+        my_eps    = [e for e in eps if _uid and e.get("name", "").startswith(f"{_uid}/")]
+        other_eps = [e for e in eps if not (_uid and e.get("name", "").startswith(f"{_uid}/"))]
+
+        _CW = [3, 2, 3, 3, 1, 1, 1, 1]
+
+        # ── Your Endpoints ──────────────────────────────────────────────────
+        if my_eps:
+            h1,h2,h3,h4,h5,_,_,_ = st.columns(_CW)
             h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
             h4.caption("Server");   h5.caption("×GPU")
 
-            for ep_info in eps:
+            for ep_info in my_eps:
                 name   = ep_info.get("name", "")
                 status = ep_info.get("status", "")
                 model  = ep_info.get("model", "—")
@@ -580,7 +600,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
 
-                c1,c2,c3,c4,c5,c6,c7,c8 = st.columns([3,2,3,3,1,1,1,1])
+                c1,c2,c3,c4,c5,c6,c7,c8 = st.columns(_CW)
                 c1.write(f"**{name}**")
                 c2.write(f"{icon} {status}")
                 c3.write(model.split("/")[-1])
@@ -624,12 +644,48 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
                         st.rerun()
-
-            # Auto-refresh while any GPU probe is in flight
-            if st.session_state._gpu_detecting:
-                time.sleep(3); st.rerun()
         else:
             st.info("No endpoints found.")
+
+        # ── Other Endpoints ─────────────────────────────────────────────────
+        if other_eps:
+            st.divider()
+            st.subheader("Other Endpoints")
+            h1,h2,h3,h4,h5,_,_,_ = st.columns(_CW)
+            h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
+            h4.caption("Server");   h5.caption("×GPU")
+
+            for ep_info in other_eps:
+                name   = ep_info.get("name", "")
+                status = ep_info.get("status", "")
+                model  = ep_info.get("model", "—")
+                gpus   = ep_info.get("gpus", "?")
+                icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
+                host, gpu, vendor, vram_gb = _hw(ep_info, hw)
+
+                c1,c2,c3,c4,c5,c6,_,_ = st.columns(_CW)
+                c1.write(f"**{name}**")
+                c2.write(f"{icon} {status}")
+                c3.write(model.split("/")[-1])
+                c4.write(host)
+                c5.write(str(gpus))
+
+                with c6:
+                    if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
+                        from gridweave.serve import Endpoint
+                        st.session_state.endpoint = Endpoint(
+                            name=ep_info["name"], status="running",
+                            endpoint_type=ep_info.get("endpoint_type", "vllm"),
+                            model=ep_info.get("model", ""), image=ep_info.get("image", ""),
+                            gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
+                            spec=ep_info.get("spec"),
+                        )
+                        st.session_state.chat_history = []
+                        st.rerun()
+
+        # Auto-refresh while any GPU probe is in flight
+        if st.session_state._gpu_detecting:
+            time.sleep(3); st.rerun()
     else:
         st.info("Deploy a model below to install the SDK and create your first endpoint.")
 
