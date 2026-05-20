@@ -760,7 +760,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             )
 
     ma, mb, mc = st.columns(3)
-    with ma: model_id      = st.text_input("Model ID",      value="meta-llama/Llama-3.2-1B-Instruct")
+    with ma: model_id      = st.text_input("Model ID",      value="Qwen/Qwen2.5-0.5B")
     with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
     with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 
