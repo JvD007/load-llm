@@ -73,3 +73,29 @@ sudo systemctl status  gridweave-depot
 sudo systemctl restart gridweave-depot
 sudo journalctl -u gridweave-depot -f
 ```
+
+## Release notes
+
+### v1.3.0 — 2026-05-20
+- Added `deploy.sh` with `--install-hook` flag for auto-deploy on push
+- Added pre-push git hook (`hooks/pre-push`)
+- Fixed HTTP 403 on Deploy caused by hardcoded wheel path
+- Removed hardcoded HuggingFace token from UI default
+- Added `README`, `LICENSE` (Apache 2.0), `CHANGELOG`, `.gitignore`, and `CONTRIBUTORS`
+
+### v1.2.0 — 2026-05-19
+- Groningen University dark theme and futuristic login screen
+- Auto-detect GPU name via `nvidia-smi`
+- S3/R2 credentials form
+- Renamed ISC → CIT in footer
+- Fixed auth state reset and ValueError on endpoint list
+
+### v1.1.0 — 2026-05-19
+- Endpoint manager (list, stop, start, delete, connect)
+- Non-blocking deploy and chat interface
+- Login screen with token authentication
+
+### v1.0.0 — 2026-05-19
+- Initial Streamlit UI for GridWeave LLM deployment
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history.
