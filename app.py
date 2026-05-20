@@ -119,9 +119,10 @@ def _friendly_error(raw: str) -> str:
         return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
     if "401" in r or "unauthorized" in r:
         return (
-            "HuggingFace token rejected (401 Unauthorized). "
-            "Your token may be expired or invalid — generate a new one at huggingface.co/settings/tokens. "
-            "If the model is gated (e.g. Llama), make sure you have accepted its license on the model's HuggingFace page."
+            "HuggingFace authentication failed (401 Unauthorized). "
+            "If deploying a public model, make sure the HuggingFace Token field is empty. "
+            "If using a gated model (e.g. Llama), your token may be expired — generate a new one at huggingface.co/settings/tokens "
+            "and ensure you have accepted the model's license."
         )
     if "repositorynotfounderror" in r or ("repository not found" in r):
         return "Model not found on HuggingFace. Check the Model ID is correct and that your token has access to it."
@@ -733,9 +734,11 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         cc1, cc2 = st.columns(2)
         with cc1:
             hf_token = st.text_input(
-                "HuggingFace Token", value="", type="password",
+                "HuggingFace Token", value="" if not use_hf else st.session_state.get("_hf_token_val", ""),
+                type="password",
                 disabled=not use_hf,
-                help="Your HuggingFace access token. Required for gated models such as Llama. Generate one at huggingface.co/settings/tokens.",
+                key="hf_token_input",
+                help="Your HuggingFace access token. Required for gated models such as Llama. Leave empty for public models. Generate one at huggingface.co/settings/tokens.",
             )
         with cc2:
             s3_endpoint   = st.text_input(
