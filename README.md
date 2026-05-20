@@ -76,6 +76,10 @@ sudo journalctl -u gridweave-depot -f
 
 ## Release notes
 
+### v1.4.1 — 2026-05-20
+- Updated README release notes to include v1.4.0
+- Updated CHANGELOG for v1.4.0
+
 ### v1.4.0 — 2026-05-20
 - Added `SECURITY.md` with vulnerability reporting policy
 - Added `CODE_OF_CONDUCT.md` based on Contributor Covenant v2.1
