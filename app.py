@@ -118,7 +118,11 @@ def _friendly_error(raw: str) -> str:
     if "expired" in r and ("token" in r or "access" in r):
         return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
     if "401" in r or "unauthorized" in r:
-        return "HuggingFace authentication failed. Check that your token is valid and has read access."
+        return (
+            "HuggingFace token rejected (401 Unauthorized). "
+            "Your token may be expired or invalid — generate a new one at huggingface.co/settings/tokens. "
+            "If the model is gated (e.g. Llama), make sure you have accepted its license on the model's HuggingFace page."
+        )
     if "repositorynotfounderror" in r or ("repository not found" in r):
         return "Model not found on HuggingFace. Check the Model ID is correct and that your token has access to it."
     if "403" in r or "forbidden" in r:
