@@ -725,45 +725,29 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     st.subheader("Deploy New Endpoint")
 
     with st.expander("🔑 Credentials", expanded=False):
-        source = st.radio(
-            "Model source",
-            ["🤗 HuggingFace", "📦 S3/R2 (own LLMs)"],
-            index=None,
-            horizontal=True,
-            key="model_source",
-            help="Choose where to load the model from. Select HuggingFace for public or gated models, or S3/R2 if you host your own pre-downloaded models.",
-        )
-        use_hf = source == "🤗 HuggingFace"
-        use_s3 = source == "📦 S3/R2 (own LLMs)"
-
         cc1, cc2 = st.columns(2)
         with cc1:
             hf_token = st.text_input(
                 "HuggingFace Token", value="",
                 type="password",
-                disabled=not use_hf,
                 key="hf_token_input",
-                help="Your HuggingFace access token. Required for gated models such as Llama. Leave empty for public models. Generate one at huggingface.co/settings/tokens.",
+                help="Optional. Required for gated models such as Llama. Leave empty for public models like Qwen. Generate one at huggingface.co/settings/tokens.",
             )
         with cc2:
             s3_endpoint   = st.text_input(
                 "S3/R2 Endpoint", placeholder="https://<account>.r2.cloudflarestorage.com",
-                disabled=not use_s3,
                 help="URL of your S3-compatible storage endpoint (e.g. Cloudflare R2 or AWS S3).",
             )
             s3_access_key = st.text_input(
                 "S3/R2 Access Key", placeholder="your-access-key-id", type="password",
-                disabled=not use_s3,
                 help="Access key ID for your S3/R2 bucket.",
             )
             s3_secret_key = st.text_input(
                 "S3/R2 Secret Key", placeholder="your-secret-access-key", type="password",
-                disabled=not use_s3,
                 help="Secret access key for your S3/R2 bucket.",
             )
             s3_bucket = st.text_input(
                 "S3/R2 Bucket", placeholder="my-bucket",
-                disabled=not use_s3,
                 help="Name of the bucket where your model files are stored.",
             )
 
@@ -775,10 +759,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     action = st.session_state.action_state
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
-            if not source:
-                st.error("Please select a model source (HuggingFace or S3/R2) in the Credentials section.")
-            elif use_s3 and not s3_endpoint:
-                st.error("Please enter your S3/R2 endpoint in the Credentials section.")
+            if not model_id:
+                st.error("Please enter a Model ID.")
             else:
                 st.session_state.action_state = "busy"
                 st.session_state.action_label = f"Deploying {model_id}…"
@@ -787,8 +769,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 _launch(_deploy_worker, (dict(
                     platform_url=st.session_state.platform_url,
                     admin_token=st.session_state.admin_token,
-                    hf_token=hf_token if use_hf else "",
-                    s3_endpoint=s3_endpoint if use_s3 else "",
+                    hf_token=hf_token,
+                    s3_endpoint=s3_endpoint,
                     s3_access_key=s3_access_key if use_s3 else "",
                     s3_secret_key=s3_secret_key if use_s3 else "",
                     model_id=model_id, vram=vram, endpoint_name=endpoint_name,
