@@ -771,8 +771,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     admin_token=st.session_state.admin_token,
                     hf_token=hf_token,
                     s3_endpoint=s3_endpoint,
-                    s3_access_key=s3_access_key if use_s3 else "",
-                    s3_secret_key=s3_secret_key if use_s3 else "",
+                    s3_access_key=s3_access_key,
+                    s3_secret_key=s3_secret_key,
                     model_id=model_id, vram=vram, endpoint_name=endpoint_name,
                 ),))
                 st.rerun()
