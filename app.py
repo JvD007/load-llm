@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 import queue
 import re
@@ -31,6 +33,36 @@ for _k, _v in [
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
+
+
+def _token_expires_at(token: str) -> float:
+    """Decode JWT exp claim without verification. Returns 0 if unreadable."""
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        data = json.loads(base64.b64decode(payload))
+        return float(data.get("exp", 0))
+    except Exception:
+        return 0
+
+
+def _token_ok(token: str) -> bool:
+    exp = _token_expires_at(token)
+    return exp == 0 or exp > time.time()
+
+
+def _token_warning(token: str) -> str | None:
+    """Return a warning string if the token expires soon, else None."""
+    exp = _token_expires_at(token)
+    if exp == 0:
+        return None
+    remaining = exp - time.time()
+    if remaining <= 0:
+        return "Your GridWeave session has expired. Please log out and log in again."
+    if remaining < 300:
+        mins = int(remaining // 60)
+        return f"Your GridWeave session expires in {mins} minute(s). Save your work and log in again soon."
+    return None
 
 
 # ── GPU name: cache lookup → inferred fallback ────────────────────────────────
@@ -120,13 +152,11 @@ def _friendly_error(raw: str) -> str:
             return "Your HuggingFace token has expired. Please generate a new one at huggingface.co/settings/tokens."
         return "Your GridWeave session has expired. Please log out and log in again."
     if "401" in r or "unauthorized" in r:
-        if "huggingface" in r or "hf_token" in r or "hf-token" in r:
-            return (
-                "This model requires a HuggingFace token. "
-                "Open Credentials and enter a valid HuggingFace token. "
-                "For gated models (e.g. Llama) also accept the license on the model's HuggingFace page."
-            )
-        return "Authentication failed. Your GridWeave session may have expired — please log out and log in again."
+        return (
+            "This model requires a HuggingFace token, or your token does not have access. "
+            "Open Credentials and enter a valid HuggingFace token. "
+            "For gated models (e.g. Llama) also accept the license on the model's HuggingFace page."
+        )
     if "repositorynotfounderror" in r or ("repository not found" in r):
         return "Model not found on HuggingFace. Check the Model ID is correct and that your token has access to it."
     if "403" in r or "forbidden" in r:
@@ -567,6 +597,10 @@ try:
 except ImportError:
     _gw_available = False
 
+_token_warn = _token_warning(st.session_state.admin_token)
+if _token_warn:
+    st.warning(_token_warn)
+
 h_left, h_right = st.columns([5, 1])
 with h_left:
     st.markdown("""
@@ -765,6 +799,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
             if not model_id:
                 st.error("Please enter a Model ID.")
+            elif not _token_ok(st.session_state.admin_token):
+                st.error("Your GridWeave session has expired. Please log out and log in again.")
             else:
                 st.session_state.action_state = "busy"
                 st.session_state.action_label = f"Deploying {model_id}…"
