@@ -7,8 +7,8 @@ BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
 if [[ "$REMOTE" == "origin" && "$BRANCH" == "main" ]]; then
     echo "==> Auto-deploying to server..."
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
-    sudo cp "${SCRIPT_DIR}/app.py" /opt/gridweave-depot/app.py && \
-    sudo systemctl restart gridweave-depot
+    sudo /usr/bin/cp "${SCRIPT_DIR}/app.py" /opt/gridweave-depot/app.py && \
+    sudo /usr/bin/systemctl restart gridweave-depot
     if [[ $? -eq 0 ]]; then
         echo "==> Deploy successful."
     else

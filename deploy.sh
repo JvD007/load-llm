@@ -26,13 +26,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo "==> Deploying ${APP_NAME}…"
-cp "${SCRIPT_DIR}/app.py" "${APP_DIR}/app.py"
+/usr/bin/cp "${SCRIPT_DIR}/app.py" "${APP_DIR}/app.py"
 
 echo "==> Restarting service…"
-systemctl restart "${APP_NAME}"
+/usr/bin/systemctl restart "${APP_NAME}"
 
 sleep 2
-STATUS=$(systemctl is-active "${APP_NAME}" || true)
+STATUS=$(/usr/bin/systemctl is-active "${APP_NAME}" || true)
 echo "==> Status: ${STATUS}"
 
 if [[ "${STATUS}" != "active" ]]; then
