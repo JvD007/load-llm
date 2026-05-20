@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-05-20
+### Added
+- `SECURITY.md` with vulnerability reporting policy
+- `CODE_OF_CONDUCT.md` based on Contributor Covenant v2.1
+- `CONTRIBUTING.md` with setup, workflow and PR guidelines
+
 ## [1.3.1] — 2026-05-20
 ### Added
 - Release notes section to README
