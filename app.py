@@ -148,6 +148,9 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         try:
             ep = gridweave.serve(
                 model=cfg["model_id"], hf_token=cfg["hf_token"],
+                s3_endpoint=cfg.get("s3_endpoint", ""),
+                s3_access_key=cfg.get("s3_access_key", ""),
+                s3_secret_key=cfg.get("s3_secret_key", ""),
                 vram=cfg["vram"], name=cfg["endpoint_name"],
             )
         finally:
@@ -717,15 +720,44 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     st.subheader("Deploy New Endpoint")
 
     with st.expander("🔑 Credentials", expanded=False):
+        source = st.radio(
+            "Model source",
+            ["🤗 HuggingFace", "📦 S3/R2 (own LLMs)"],
+            index=None,
+            horizontal=True,
+            help="Choose where to load the model from. Select HuggingFace for public or gated models, or S3/R2 if you host your own pre-downloaded models.",
+        )
+        use_hf = source == "🤗 HuggingFace"
+        use_s3 = source == "📦 S3/R2 (own LLMs)"
+
         cc1, cc2 = st.columns(2)
         with cc1:
-            hf_token = st.text_input("HuggingFace Token",
-                value="", type="password")
+            hf_token = st.text_input(
+                "HuggingFace Token", value="", type="password",
+                disabled=not use_hf,
+                help="Your HuggingFace access token. Required for gated models such as Llama. Generate one at huggingface.co/settings/tokens.",
+            )
         with cc2:
-            st.text_input("S3/R2 Endpoint",   placeholder="https://<account>.r2.cloudflarestorage.com")
-            st.text_input("S3/R2 Access Key", placeholder="your-access-key-id",     type="password")
-            st.text_input("S3/R2 Secret Key", placeholder="your-secret-access-key", type="password")
-            st.text_input("S3/R2 Bucket",     placeholder="my-bucket")
+            s3_endpoint   = st.text_input(
+                "S3/R2 Endpoint", placeholder="https://<account>.r2.cloudflarestorage.com",
+                disabled=not use_s3,
+                help="URL of your S3-compatible storage endpoint (e.g. Cloudflare R2 or AWS S3).",
+            )
+            s3_access_key = st.text_input(
+                "S3/R2 Access Key", placeholder="your-access-key-id", type="password",
+                disabled=not use_s3,
+                help="Access key ID for your S3/R2 bucket.",
+            )
+            s3_secret_key = st.text_input(
+                "S3/R2 Secret Key", placeholder="your-secret-access-key", type="password",
+                disabled=not use_s3,
+                help="Secret access key for your S3/R2 bucket.",
+            )
+            s3_bucket = st.text_input(
+                "S3/R2 Bucket", placeholder="my-bucket",
+                disabled=not use_s3,
+                help="Name of the bucket where your model files are stored.",
+            )
 
     ma, mb, mc = st.columns(3)
     with ma: model_id      = st.text_input("Model ID",      value="meta-llama/Llama-3.2-1B-Instruct")
@@ -735,8 +767,12 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
     action = st.session_state.action_state
     if action == "idle":
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
-            if not hf_token:
+            if not source:
+                st.error("Please select a model source (HuggingFace or S3/R2) in the Credentials section.")
+            elif use_hf and not hf_token:
                 st.error("Please enter your HuggingFace token in the Credentials section.")
+            elif use_s3 and not s3_endpoint:
+                st.error("Please enter your S3/R2 endpoint in the Credentials section.")
             else:
                 st.session_state.action_state = "busy"
                 st.session_state.action_label = f"Deploying {model_id}…"
@@ -745,8 +781,11 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 _launch(_deploy_worker, (dict(
                     platform_url=st.session_state.platform_url,
                     admin_token=st.session_state.admin_token,
-                    hf_token=hf_token, model_id=model_id,
-                    vram=vram, endpoint_name=endpoint_name,
+                    hf_token=hf_token if use_hf else "",
+                    s3_endpoint=s3_endpoint if use_s3 else "",
+                    s3_access_key=s3_access_key if use_s3 else "",
+                    s3_secret_key=s3_secret_key if use_s3 else "",
+                    model_id=model_id, vram=vram, endpoint_name=endpoint_name,
                 ),))
                 st.rerun()
     elif action == "busy":
