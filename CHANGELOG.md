@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-05-21
 ### Fixed
 - Chat/generate 404 "Endpoint not found": inference proxy requires the short name after `--` (e.g. `llama-test-app`), not the full display-prefixed name; `ep_bare` is now used for all inference proxy URLs
 - Stop/delete 404 on bare endpoint names: user ID is now cached in session state after the endpoint list loads and passed directly to `_gw_qname`, avoiding a redundant `/v1/auth/me` call that could fail silently and leave the name unqualified
