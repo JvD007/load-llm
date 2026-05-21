@@ -185,8 +185,12 @@ def _gw_direct(method: str, path: str, **kwargs):
     return r.json()
 
 
-def _gw_qname(name: str) -> str:
+def _gw_qname(name: str, uid: str = None) -> str:
     """Qualify an endpoint name (prepend user_id/) with a bare-name fallback."""
+    if "/" in name:
+        return name
+    if uid:
+        return f"{uid}/{name}"
     try:
         from gridweave.auth import qualify_name
         return qualify_name(name)
@@ -234,12 +238,12 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         q.put(("error", _friendly_error(str(exc))))
 
 
-def _start_worker(name: str, admin_token: str, platform_url: str, q: queue.Queue):
+def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: queue.Queue):
     try:
         import gridweave
         gridweave.auth(admin_token, platform_url=platform_url)
         q.put(("log", f"Starting '{name}'…"))
-        qname = _gw_qname(name)
+        qname = _gw_qname(name, uid)
         _gw_direct("post", f"/v1/endpoints/{qname}/start")
         t0 = time.time()
         while True:
@@ -705,6 +709,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             _uid = _get_uid()
         except Exception:
             _uid = None
+        st.session_state["_cached_uid"] = _uid
         if _uid:
             # Endpoints with no "/" are bare/unqualified names — treat as yours.
             # Only put in Other Endpoints if it clearly carries a different user's prefix.
@@ -759,7 +764,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(name)}/stop")
+                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(name, _uid)}/stop")
                             if st.session_state.endpoint and st.session_state.endpoint.name == name:
                                 st.session_state.endpoint = None
                             st.rerun()
@@ -771,12 +776,12 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             st.session_state.action_log   = []
                             st.session_state.action_error = None
                             _launch(_start_worker, (name, st.session_state.admin_token,
-                                                    st.session_state.platform_url))
+                                                    st.session_state.platform_url, _uid))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(name)}")
+                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(name, _uid)}")
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
                         st.rerun()
@@ -905,9 +910,10 @@ if st.session_state.endpoint:
         _active_hw = _hw_lookup() if _gw_available else {}
         _ep_info   = {}
         ep_bare = _split_ep_name(ep.name)[0] if "/" in ep.name or "--" in ep.name else ep.name
+        _cu = st.session_state.get("_cached_uid")
         for _e in _gw.endpoints():
             _n = _e.get("name", "")
-            if _n == ep.name or _n == ep_bare or _gw_qname(_n) == ep.name:
+            if _n == ep.name or _n == ep_bare or _gw_qname(_n, _cu) == ep.name:
                 _ep_info = _e; break
         _host, _gpu, _vendor, _vgb = _hw(_ep_info, _active_hw)
         _gpus = _ep_info.get("gpus", ep.gpus)
@@ -965,7 +971,7 @@ if st.session_state.endpoint:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
-                        _ep_api_name = _gw_qname(ep.name)
+                        _ep_api_name = _gw_qname(ep.name, st.session_state.get("_cached_uid"))
                         if _is_instruct:
                             data = _gw_direct(
                                 "post",
