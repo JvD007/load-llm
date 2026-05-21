@@ -7,7 +7,21 @@ BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
 if [[ "$REMOTE" == "origin" && "$BRANCH" == "main" ]]; then
     echo "==> Auto-deploying to server..."
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
-    sudo /usr/bin/cp "${SCRIPT_DIR}/app.py" /opt/gridweave-depot/app.py && \
+    WHL_NAME="gridweave_sdk-0.2.0-py3-none-any.whl"
+    APP_DIR="/opt/gridweave-depot"
+
+    sudo /usr/bin/cp "${SCRIPT_DIR}/app.py" "${APP_DIR}/app.py"
+
+    # Update wheel if it changed
+    if [[ -f "${SCRIPT_DIR}/${WHL_NAME}" ]]; then
+        if ! cmp -s "${SCRIPT_DIR}/${WHL_NAME}" "${APP_DIR}/${WHL_NAME}" 2>/dev/null; then
+            echo "==> Updating GridWeave SDK wheel…"
+            sudo /usr/bin/cp "${SCRIPT_DIR}/${WHL_NAME}" "${APP_DIR}/${WHL_NAME}"
+            sudo "${APP_DIR}/.venv/bin/pip" install --quiet --force-reinstall \
+                --no-deps "${APP_DIR}/${WHL_NAME}"
+        fi
+    fi
+
     sudo /usr/bin/systemctl restart gridweave-depot
     if [[ $? -eq 0 ]]; then
         echo "==> Deploy successful."

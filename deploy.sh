@@ -8,6 +8,8 @@ set -euo pipefail
 APP_DIR="/opt/gridweave-depot"
 APP_NAME="gridweave-depot"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WHL_NAME="gridweave_sdk-0.2.0-py3-none-any.whl"
+WHL_URL="https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/${WHL_NAME}"
 
 # Install git hook if requested (does not require root)
 if [[ "${1:-}" == "--install-hook" ]]; then
@@ -27,6 +29,17 @@ fi
 
 echo "==> Deploying ${APP_NAME}…"
 /usr/bin/cp "${SCRIPT_DIR}/app.py" "${APP_DIR}/app.py"
+
+# Update the SDK wheel if a newer local copy exists
+if [[ -f "${SCRIPT_DIR}/${WHL_NAME}" ]]; then
+    if ! cmp -s "${SCRIPT_DIR}/${WHL_NAME}" "${APP_DIR}/${WHL_NAME}" 2>/dev/null; then
+        echo "==> Updating GridWeave SDK wheel…"
+        /usr/bin/cp "${SCRIPT_DIR}/${WHL_NAME}" "${APP_DIR}/${WHL_NAME}"
+        "${APP_DIR}/.venv/bin/pip" install --quiet --force-reinstall \
+            --no-deps "${APP_DIR}/${WHL_NAME}"
+        echo "==> SDK updated."
+    fi
+fi
 
 echo "==> Restarting service…"
 /usr/bin/systemctl restart "${APP_NAME}"
