@@ -186,10 +186,16 @@ def _gw_direct(method: str, path: str, **kwargs):
 
 
 def _gw_qname(name: str, uid: str = None) -> str:
-    """Qualify an endpoint name (prepend user_id/) with a bare-name fallback."""
-    if "/" in name:
-        return name
+    """Qualify an endpoint name with the actual user UUID.
+
+    endpoints() returns names as 'DisplayName/ep' (display prefix, not UUID).
+    We always replace the prefix with the real uid so management and inference
+    URLs use the correct UUID-based path.
+    """
     if uid:
+        if "/" in name:
+            prefix, _, ep_part = name.partition("/")
+            return name if prefix == uid else f"{uid}/{ep_part}"
         return f"{uid}/{name}"
     try:
         from gridweave.auth import qualify_name
