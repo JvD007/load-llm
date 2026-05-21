@@ -651,8 +651,12 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             _uid = _get_uid()
         except Exception:
             _uid = None
-        my_eps    = [e for e in eps if _uid and e.get("name", "").startswith(f"{_uid}/")]
-        other_eps = [e for e in eps if not (_uid and e.get("name", "").startswith(f"{_uid}/"))]
+        if _uid:
+            my_eps    = [e for e in eps if e.get("name", "").startswith(f"{_uid}/")]
+            other_eps = [e for e in eps if not e.get("name", "").startswith(f"{_uid}/")]
+        else:
+            my_eps    = eps
+            other_eps = []
 
         _CW = [3, 2, 3, 3, 1, 1, 1, 1]
 
