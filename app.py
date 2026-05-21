@@ -199,14 +199,23 @@ def _gw_qname(name: str, uid: str = None) -> str:
 
 
 def _split_ep_name(name: str) -> tuple[str, str]:
-    """Return (display_name, user) by splitting on '/' then '--'."""
+    """Return (short_name, user) by splitting on '/' then '--'."""
     if "/" in name:
-        user, _, display = name.partition("/")
-        return display, user
+        user, _, rest = name.partition("/")
+        return _ep_short_name(rest), user
     if "--" in name:
-        user, _, display = name.partition("--")
-        return display, user
+        user, _, short = name.partition("--")
+        return short, user
     return name, "—"
+
+
+def _ep_short_name(name: str) -> str:
+    """Return the inference-proxy short name, stripping uid/ and DisplayName-- prefixes."""
+    if "/" in name:
+        name = name.partition("/")[2]
+    if "--" in name:
+        name = name.partition("--")[2]
+    return name
 
 
 def _deploy_worker(cfg: dict, q: queue.Queue):
@@ -910,7 +919,7 @@ if st.session_state.endpoint:
     try:
         _active_hw = _hw_lookup() if _gw_available else {}
         _ep_info   = {}
-        ep_bare = _split_ep_name(ep.name)[0] if "/" in ep.name or "--" in ep.name else ep.name
+        ep_bare = _ep_short_name(ep.name)
         _cu = st.session_state.get("_cached_uid")
         for _e in _gw.endpoints():
             _n = _e.get("name", "")
