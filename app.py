@@ -753,7 +753,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=ep_info["name"], status="running",
+                            name=display_name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
@@ -765,28 +765,25 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                            _bare = _split_ep_name(name)[0] if "--" in name else name
-                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(_bare, _uid)}/stop")
-                            if st.session_state.endpoint and st.session_state.endpoint.name == name:
+                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(display_name, _uid)}/stop")
+                            if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                                 st.session_state.endpoint = None
                             st.rerun()
                     elif status == "stopped":
                         if st.button("Start", key=f"start_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                             st.session_state.action_state = "busy"
-                            st.session_state.action_label = f"Starting '{name}'…"
+                            st.session_state.action_label = f"Starting '{display_name}'…"
                             st.session_state.action_log   = []
                             st.session_state.action_error = None
-                            _bare = _split_ep_name(name)[0] if "--" in name else name
-                            _launch(_start_worker, (_bare, st.session_state.admin_token,
+                            _launch(_start_worker, (display_name, st.session_state.admin_token,
                                                     st.session_state.platform_url, _uid))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                        _bare = _split_ep_name(name)[0] if "--" in name else name
-                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(_bare, _uid)}")
-                        if st.session_state.endpoint and st.session_state.endpoint.name == name:
+                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(display_name, _uid)}")
+                        if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                             st.session_state.endpoint = None
                         st.rerun()
         else:
