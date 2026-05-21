@@ -765,7 +765,8 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(name, _uid)}/stop")
+                            _bare = _split_ep_name(name)[0] if "--" in name else name
+                            _gw_direct("post", f"/v1/endpoints/{_gw_qname(_bare, _uid)}/stop")
                             if st.session_state.endpoint and st.session_state.endpoint.name == name:
                                 st.session_state.endpoint = None
                             st.rerun()
@@ -776,13 +777,15 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             st.session_state.action_label = f"Starting '{name}'…"
                             st.session_state.action_log   = []
                             st.session_state.action_error = None
-                            _launch(_start_worker, (name, st.session_state.admin_token,
+                            _bare = _split_ep_name(name)[0] if "--" in name else name
+                            _launch(_start_worker, (_bare, st.session_state.admin_token,
                                                     st.session_state.platform_url, _uid))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(name, _uid)}")
+                        _bare = _split_ep_name(name)[0] if "--" in name else name
+                        _gw_direct("delete", f"/v1/endpoints/{_gw_qname(_bare, _uid)}")
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
                         st.rerun()
