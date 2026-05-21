@@ -746,13 +746,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             h4.caption("Model");    h5.caption("Server"); h6.caption("×GPU")
 
             for ep_info in my_eps:
-                name   = ep_info.get("name", "")
+                name         = ep_info.get("name", "")
+                display_name = ep_info.get("display_name") or _ep_short_name(name)
+                user_part    = ep_info.get("user_id") or _split_ep_name(name)[1]
                 status = ep_info.get("status", "")
                 model  = ep_info.get("model", "—")
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
-                display_name, user_part = _split_ep_name(name)
 
                 c1,c2,c3,c4,c5,c6,c7,c8,c9 = st.columns(_CW)
                 c1.write(f"**{display_name}**")
@@ -811,13 +812,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             h4.caption("Model");    h5.caption("Server"); h6.caption("×GPU")
 
             for ep_info in other_eps:
-                name   = ep_info.get("name", "")
+                name         = ep_info.get("name", "")
+                display_name = ep_info.get("display_name") or _ep_short_name(name)
+                user_part    = ep_info.get("user_id") or _split_ep_name(name)[1]
                 status = ep_info.get("status", "")
                 model  = ep_info.get("model", "—")
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
-                display_name, user_part = _split_ep_name(name)
 
                 c1,c2,c3,c4,c5,c6,c7,_,_ = st.columns(_CW)
                 c1.write(f"**{display_name}**")
@@ -831,7 +833,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=ep_info["name"], status="running",
+                            name=display_name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
@@ -923,11 +925,10 @@ if st.session_state.endpoint:
     try:
         _active_hw = _hw_lookup() if _gw_available else {}
         _ep_info   = {}
-        ep_bare = _ep_short_name(ep.name)
+        ep_bare = ep.name  # ep.name is always the display_name short name now
         _cu = st.session_state.get("_cached_uid")
         for _e in _gw.endpoints():
-            _n = _e.get("name", "")
-            if _n == ep.name or _n == ep_bare or _gw_qname(_n, _cu) == ep.name:
+            if _e.get("display_name") == ep_bare or _e.get("name") == ep_bare:
                 _ep_info = _e; break
         _host, _gpu, _vendor, _vgb = _hw(_ep_info, _active_hw)
         _gpus = _ep_info.get("gpus", ep.gpus)
