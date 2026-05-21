@@ -711,10 +711,6 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             _uid = None
         st.session_state["_cached_uid"] = _uid
 
-        with st.expander("🔍 Debug: raw endpoint names", expanded=False):
-            st.caption(f"uid = {_uid!r}")
-            for _e in eps:
-                st.code(f"name={_e.get('name')!r}  status={_e.get('status')!r}  model={_e.get('model')!r}")
         if _uid:
             # Endpoints with no "/" are bare/unqualified names — treat as yours.
             # Only put in Other Endpoints if it clearly carries a different user's prefix.
@@ -976,7 +972,8 @@ if st.session_state.endpoint:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
-                        _ep_api_name = _gw_qname(ep.name, st.session_state.get("_cached_uid"))
+                        # Use the short name (after "--") for the inference proxy
+                        _ep_api_name = _gw_qname(ep_bare, st.session_state.get("_cached_uid"))
                         if _is_instruct:
                             data = _gw_direct(
                                 "post",
