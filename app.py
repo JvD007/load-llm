@@ -194,6 +194,17 @@ def _gw_qname(name: str) -> str:
         return name
 
 
+def _split_ep_name(name: str) -> tuple[str, str]:
+    """Return (display_name, user) by splitting on '/' then '--'."""
+    if "/" in name:
+        user, _, display = name.partition("/")
+        return display, user
+    if "--" in name:
+        user, _, display = name.partition("--")
+        return display, user
+    return name, "—"
+
+
 def _deploy_worker(cfg: dict, q: queue.Queue):
     try:
         q.put(("log", "Installing SDK…"))
@@ -707,13 +718,13 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             my_eps    = eps
             other_eps = []
 
-        _CW = [3, 2, 3, 3, 1, 1, 1, 1]
+        _CW = [2, 2, 2, 2, 2, 1, 1, 1, 1]
 
         # ── Your Endpoints ──────────────────────────────────────────────────
         if my_eps:
-            h1,h2,h3,h4,h5,_,_,_ = st.columns(_CW)
-            h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
-            h4.caption("Server");   h5.caption("×GPU")
+            h1,h2,h3,h4,h5,h6,_,_,_ = st.columns(_CW)
+            h1.caption("Endpoint"); h2.caption("User"); h3.caption("Status")
+            h4.caption("Model");    h5.caption("Server"); h6.caption("×GPU")
 
             for ep_info in my_eps:
                 name   = ep_info.get("name", "")
@@ -722,15 +733,17 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
+                display_name, user_part = _split_ep_name(name)
 
-                c1,c2,c3,c4,c5,c6,c7,c8 = st.columns(_CW)
-                c1.write(f"**{name}**")
-                c2.write(f"{icon} {status}")
-                c3.write(model.split("/")[-1])
-                c4.write(host)
-                c5.write(str(gpus))
+                c1,c2,c3,c4,c5,c6,c7,c8,c9 = st.columns(_CW)
+                c1.write(f"**{display_name}**")
+                c2.write(user_part)
+                c3.write(f"{icon} {status}")
+                c4.write(model.split("/")[-1])
+                c5.write(host)
+                c6.write(str(gpus))
 
-                with c6:
+                with c7:
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
@@ -742,7 +755,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         )
                         st.session_state.chat_history = []
                         st.rerun()
-                with c7:
+                with c8:
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
@@ -760,7 +773,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             _launch(_start_worker, (name, st.session_state.admin_token,
                                                     st.session_state.platform_url))
                             st.rerun()
-                with c8:
+                with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
                         _gw_direct("delete", f"/v1/endpoints/{_gw_qname(name)}")
@@ -774,9 +787,9 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         if other_eps:
             st.divider()
             st.subheader("Other Endpoints")
-            h1,h2,h3,h4,h5,_,_,_ = st.columns(_CW)
-            h1.caption("Endpoint"); h2.caption("Status"); h3.caption("Model")
-            h4.caption("Server");   h5.caption("×GPU")
+            h1,h2,h3,h4,h5,h6,_,_,_ = st.columns(_CW)
+            h1.caption("Endpoint"); h2.caption("User"); h3.caption("Status")
+            h4.caption("Model");    h5.caption("Server"); h6.caption("×GPU")
 
             for ep_info in other_eps:
                 name   = ep_info.get("name", "")
@@ -785,15 +798,17 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 gpus   = ep_info.get("gpus", "?")
                 icon   = "🟢" if status == "running" else ("🟡" if status in ("deploying","allocating") else "🔴")
                 host, gpu, vendor, vram_gb = _hw(ep_info, hw)
+                display_name, user_part = _split_ep_name(name)
 
-                c1,c2,c3,c4,c5,c6,_,_ = st.columns(_CW)
-                c1.write(f"**{name}**")
-                c2.write(f"{icon} {status}")
-                c3.write(model.split("/")[-1])
-                c4.write(host)
-                c5.write(str(gpus))
+                c1,c2,c3,c4,c5,c6,c7,_,_ = st.columns(_CW)
+                c1.write(f"**{display_name}**")
+                c2.write(user_part)
+                c3.write(f"{icon} {status}")
+                c4.write(model.split("/")[-1])
+                c5.write(host)
+                c6.write(str(gpus))
 
-                with c6:
+                with c7:
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
