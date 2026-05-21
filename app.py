@@ -170,6 +170,21 @@ def _friendly_error(raw: str) -> str:
     return raw
 
 
+def _gw_direct(method: str, path: str, **kwargs):
+    """Call the GridWeave API without SDK qualify_name — preserves bare endpoint names."""
+    import urllib.parse, httpx as _hx
+    from gridweave.auth import get_platform_url, _headers
+    safe = "/".join(urllib.parse.quote(seg, safe="") for seg in path.split("/"))
+    r = getattr(_hx, method)(f"{get_platform_url()}{safe}", headers=_headers(), timeout=30, **kwargs)
+    if not r.is_success:
+        try:
+            d = r.json(); detail = d.get("detail", d) if isinstance(d, dict) else d
+        except Exception:
+            detail = r.text or "(no body)"
+        raise RuntimeError(f"{r.status_code}: {detail}")
+    return r.json()
+
+
 def _deploy_worker(cfg: dict, q: queue.Queue):
     try:
         q.put(("log", "Installing SDK…"))
@@ -204,12 +219,30 @@ def _start_worker(name: str, admin_token: str, platform_url: str, q: queue.Queue
         import gridweave
         gridweave.auth(admin_token, platform_url=platform_url)
         q.put(("log", f"Starting '{name}'…"))
-        old = sys.stdout; sys.stdout = _Tee(old, q)
-        try:
-            gridweave.start(name)
-        finally:
-            sys.stdout = old
-        ep = gridweave.endpoint(name)
+        _gw_direct("post", f"/v1/endpoints/{name}/start")
+        t0 = time.time()
+        while True:
+            try:
+                h = _gw_direct("get", f"/v1/endpoints/{name}/health")
+                if h.get("failure"):
+                    raise RuntimeError(f"Start failed: {h.get('failure_reason', 'unknown')}")
+                if h.get("db_status") == "running":
+                    break
+                state = h.get("pod_phase") or h.get("db_status") or "?"
+                q.put(("log", f"  [endpoint] {int(time.time() - t0)}s — {state}"))
+            except RuntimeError:
+                raise
+            except Exception:
+                pass
+            time.sleep(3)
+        data = _gw_direct("get", f"/v1/endpoints/{name}")
+        from gridweave.serve import Endpoint
+        ep = Endpoint(
+            name=data["name"], status="running",
+            endpoint_type=data.get("endpoint_type", "vllm"),
+            model=data.get("model", ""), image=data.get("image", ""),
+            gpus=data.get("gpus", 1), vendor=data.get("vendor"), spec=data.get("spec"),
+        )
         q.put(("done", ep))
     except Exception as exc:
         q.put(("error", str(exc)))
@@ -703,7 +736,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                            _gw.stop(name)
+                            _gw_direct("post", f"/v1/endpoints/{name}/stop")
                             if st.session_state.endpoint and st.session_state.endpoint.name == name:
                                 st.session_state.endpoint = None
                             st.rerun()
@@ -720,7 +753,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 with c8:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
-                        _gw.delete(name)
+                        _gw_direct("delete", f"/v1/endpoints/{name}")
                         if st.session_state.endpoint and st.session_state.endpoint.name == name:
                             st.session_state.endpoint = None
                         st.rerun()
