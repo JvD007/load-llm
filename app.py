@@ -904,8 +904,10 @@ if st.session_state.endpoint:
     try:
         _active_hw = _hw_lookup() if _gw_available else {}
         _ep_info   = {}
+        ep_bare = _split_ep_name(ep.name)[0] if "/" in ep.name or "--" in ep.name else ep.name
         for _e in _gw.endpoints():
-            if _e.get("name") == ep.name:
+            _n = _e.get("name", "")
+            if _n == ep.name or _n == ep_bare or _gw_qname(_n) == ep.name:
                 _ep_info = _e; break
         _host, _gpu, _vendor, _vgb = _hw(_ep_info, _active_hw)
         _gpus = _ep_info.get("gpus", ep.gpus)
@@ -915,7 +917,8 @@ if st.session_state.endpoint:
         _host, _gpu, _vendor, _vgb, _gpus = "—", ep.vendor or "—", ep.vendor or "—", 0, ep.gpus
 
     short_model = ep.model.split("/")[-1]
-    st.success(f"✅ **{ep.name}**")
+    ep_display, _ = _split_ep_name(ep.name)
+    st.success(f"✅ **{ep_display}**")
     st.caption(
         f"🖥 **Server:** {_host}  &nbsp;·&nbsp;  "
         f"🤖 **Model:** {short_model}  &nbsp;·&nbsp;  "
@@ -962,19 +965,28 @@ if st.session_state.endpoint:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
+                        _ep_api_name = _gw_qname(ep.name)
                         if _is_instruct:
-                            response = ep.chat(
-                                [{"role": m["role"], "content": m["content"]}
-                                 for m in st.session_state.chat_history],
-                                max_tokens=max_tokens, temperature=temperature,
+                            data = _gw_direct(
+                                "post",
+                                f"/v1/endpoints/{_ep_api_name}/v1/chat/completions",
+                                json={"messages": [{"role": m["role"], "content": m["content"]}
+                                                   for m in st.session_state.chat_history],
+                                      "max_tokens": max_tokens, "temperature": temperature},
                             )
+                            response = data["choices"][0]["message"]["content"]
                         else:
                             prompt_text = "\n".join(
                                 f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
                                 for m in st.session_state.chat_history
                             ) + "\nAssistant:"
-                            raw = ep.generate(prompt_text, max_tokens=max_tokens,
-                                              temperature=temperature)
+                            data = _gw_direct(
+                                "post",
+                                f"/v1/endpoints/{_ep_api_name}/v1/completions",
+                                json={"prompt": prompt_text, "max_tokens": max_tokens,
+                                      "temperature": temperature},
+                            )
+                            raw = data["choices"][0]["text"]
                             response = re.split(r"\n(User|Assistant):", raw)[0].strip()
                     except Exception as exc:
                         response = f"⚠️ Error: {exc}"
