@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-05-21
+### Added
+- GridWeave SDK upgraded to v0.2.0 — adds `start`, `stop`, `delete`, `endpoint`, `endpoints` as top-level exports; custom image/spec endpoint support; owner-qualified endpoint names
+
+### Changed
+- `deploy.sh` and `hooks/pre-push` now copy and reinstall the SDK wheel when it changes, so SDK updates reach the server on push without a full reinstall
+
+### Fixed
+- Endpoints deployed by the current user always appeared under "Other Endpoints" when the `get_user_id()` API call failed; all endpoints now fall back to "Your Endpoints" in that case
+
 ## [1.4.1] — 2026-05-20
 ### Changed
 - Updated README release notes to include v1.4.0
