@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- Chat/generate 404 "Endpoint not found": inference proxy requires the short name after `--` (e.g. `llama-test-app`), not the full display-prefixed name; `ep_bare` is now used for all inference proxy URLs
+- Stop/delete 404 on bare endpoint names: user ID is now cached in session state after the endpoint list loads and passed directly to `_gw_qname`, avoiding a redundant `/v1/auth/me` call that could fail silently and leave the name unqualified
+
 ## [1.5.0] — 2026-05-21
 ### Added
 - GridWeave SDK upgraded to v0.2.0 — adds `start`, `stop`, `delete`, `endpoint`, `endpoints` as top-level exports; custom image/spec endpoint support; owner-qualified endpoint names
