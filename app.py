@@ -1006,7 +1006,7 @@ if st.session_state.endpoint:
                             raw = data["choices"][0]["text"]
                             response = re.split(r"\n(User|Assistant):", raw)[0].strip()
                     except Exception as exc:
-                        response = f"⚠️ Error: {exc}"
+                        response = f"⚠️ Error: {exc}\n\n(ep.name={ep.name!r}, ep_bare={ep_bare!r}, api={_ep_api_name!r})"
                 st.write(response)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
