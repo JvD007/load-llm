@@ -652,8 +652,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         except Exception:
             _uid = None
         if _uid:
-            my_eps    = [e for e in eps if e.get("name", "").startswith(f"{_uid}/")]
-            other_eps = [e for e in eps if not e.get("name", "").startswith(f"{_uid}/")]
+            # Endpoints with no "/" are bare/unqualified names — treat as yours.
+            # Only put in Other Endpoints if it clearly carries a different user's prefix.
+            my_eps    = [e for e in eps if
+                         "/" not in e.get("name", "") or
+                         e.get("name", "").startswith(f"{_uid}/")]
+            other_eps = [e for e in eps if
+                         "/" in e.get("name", "") and
+                         not e.get("name", "").startswith(f"{_uid}/")]
         else:
             my_eps    = eps
             other_eps = []
