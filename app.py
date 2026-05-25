@@ -959,9 +959,8 @@ if st.session_state.endpoint:
             st.rerun()
 
     left, right = st.columns([3, 1])
-    _INSTRUCT_ALIASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b"}
     _m = ep.model.lower().split("/")[-1]
-    _is_instruct = "instruct" in _m or "chat" in _m or _m in _INSTRUCT_ALIASES
+    _is_instruct = "instruct" in _m or "chat" in _m
 
     with right:
         st.caption("Settings")
