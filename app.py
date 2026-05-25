@@ -737,10 +737,6 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         except Exception as e:
             eps = []; hw = {}; st.warning(f"Could not load endpoints: {e}")
 
-        with st.expander("🔍 Raw API endpoint data (debug)", expanded=True):
-            for _e in eps:
-                st.code(str(_e))
-
         # Split into own vs others by user-id prefix in the qualified name
         try:
             from gridweave.auth import get_user_id as _get_uid
