@@ -804,7 +804,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
-                            _gw_direct("post", f"/v1/endpoints/{name}/stop")
+                            _gw_direct("post", f"/v1/endpoints/{display_name}/stop")
                             if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                                 st.session_state.endpoint = None
                             st.rerun()
@@ -815,13 +815,13 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                             st.session_state.action_label = f"Starting '{display_name}'…"
                             st.session_state.action_log   = []
                             st.session_state.action_error = None
-                            _launch(_start_worker, (name, st.session_state.user_token,
+                            _launch(_start_worker, (display_name, st.session_state.user_token,
                                                     st.session_state.platform_url, _uid))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
-                        _gw_direct("delete", f"/v1/endpoints/{name}")
+                        _gw_direct("delete", f"/v1/endpoints/{display_name}")
                         if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                             st.session_state.endpoint = None
                         st.rerun()
