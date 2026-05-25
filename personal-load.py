@@ -15,13 +15,15 @@ R2_BUCKET = "gridweave"
 HF_TOKEN = "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"
 
 endpoint_name = "llama-eric"
+model = "meta-llama/Llama-3.2-1B"
+vram = "4GB"
 
 gridweave.auth(ADMIN_TOKEN, platform_url=PLATFORM_URL)
 
 ep = gridweave.serve(
-    model="meta-llama/Llama-3.2-1B",
+    model=model,
     hf_token=HF_TOKEN,
-    vram="4GB",
+    vram=vram,
     name=endpoint_name,
 )
 
