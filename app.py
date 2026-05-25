@@ -444,7 +444,7 @@ if not st.session_state.authenticated:
 
 /* Perspective grid floor */
 #lscene .grid {
-    position: absolute; bottom: 0; left: -50%; right: -50%; height: 30%;
+    position: absolute; bottom: 0; left: -50%; right: -50%; height: 20%;
     background-image:
         linear-gradient(rgba(41,182,246,0.13) 1px, transparent 1px),
         linear-gradient(90deg, rgba(41,182,246,0.13) 1px, transparent 1px);
@@ -457,14 +457,14 @@ if not st.session_state.authenticated:
 
 /* Horizon glow */
 #lscene .horizon {
-    position: absolute; bottom: 30%; left: 0; right: 0; height: 2px;
+    position: absolute; bottom: 20%; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, transparent 0%, #0277bd 12%, #29b6f6 50%, #0277bd 88%, transparent 100%);
     box-shadow: 0 0 50px 14px rgba(41,182,246,0.2), 0 -40px 80px rgba(41,182,246,0.05);
 }
 
 /* Vertical light beams */
 .vbeam {
-    position: absolute; bottom: 30%; width: 2px; top: 0;
+    position: absolute; bottom: 20%; width: 2px; top: 0;
     background: linear-gradient(180deg, transparent 5%, rgba(41,182,246,0.03) 55%, rgba(41,182,246,0.16) 100%);
     animation: bp 4s ease-in-out infinite;
 }
@@ -476,8 +476,8 @@ if not st.session_state.authenticated:
 
 /* ── Server rack row ── */
 #lscene .racks {
-    position: absolute; bottom: 28.5%; left: 50%;
-    transform: translateX(-50%) scale(1.9);
+    position: absolute; bottom: 18%; left: 50%;
+    transform: translateX(-50%) scale(1.5);
     transform-origin: center bottom;
     display: flex; gap: 20px; align-items: flex-end;
 }
@@ -737,9 +737,9 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
                         st.error(f"Authentication failed: {e}")
 
     st.markdown("""
-<div style="text-align:center;margin-top:2.5rem;color:#4a7a9b;
-            font-family:'Courier New',monospace;font-size:0.62rem;
-            letter-spacing:0.08em;opacity:0.75;">
+<div style="text-align:center;margin-top:1.8rem;color:#81d4fa;
+            font-family:'Courier New',monospace;font-size:0.74rem;
+            letter-spacing:0.14em;opacity:0.88;">
     With support of Dell Technologies, GridWeave and Groningen University CIT
 </div>
 """, unsafe_allow_html=True)
