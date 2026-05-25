@@ -267,6 +267,7 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
             ep = gridweave.serve(**serve_kwargs)
         finally:
             sys.stdout = old
+        ep.name = _ep_short_name(ep.name)
         q.put(("done", ep))
     except Exception as exc:
         q.put(("error", _friendly_error(str(exc))))
@@ -296,7 +297,7 @@ def _start_worker(name: str, user_token: str, platform_url: str, uid: str, q: qu
         data = _gw_direct("get", f"/v1/endpoints/{name}")
         from gridweave.serve import Endpoint
         ep = Endpoint(
-            name=data.get("name"), status="running",
+            name=data.get("display_name") or _ep_short_name(data["name"]), status="running",
             endpoint_type=data.get("endpoint_type", "vllm"),
             model=data.get("model", ""), image=data.get("image", ""),
             gpus=data.get("gpus", 1), vendor=data.get("vendor"), spec=data.get("spec"),
@@ -787,7 +788,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=name, status="running",
+                            name=display_name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
@@ -853,7 +854,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=name, status="running",
+                            name=display_name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
