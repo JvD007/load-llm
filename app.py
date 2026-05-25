@@ -576,8 +576,8 @@ if not st.session_state.authenticated:
 
 /* Form inputs */
 [data-testid="stTextInput"] > label {
-    color: #81d4fa !important; font-size: 0.62rem !important;
-    letter-spacing: 0.18em !important; text-transform: uppercase !important;
+    color: #81d4fa !important; font-size: 0.58rem !important;
+    letter-spacing: 0.14em !important; text-transform: uppercase !important;
     font-family: 'Courier New', monospace !important;
 }
 [data-testid="stTextInput"] input {
@@ -585,6 +585,10 @@ if not st.session_state.authenticated:
     border: 1px solid rgba(41,182,246,0.3) !important;
     color: #e3f2fd !important; border-radius: 6px !important;
     font-family: 'Courier New', monospace !important;
+    font-size: 0.72rem !important;
+    padding: 0.3rem 0.6rem !important;
+    height: auto !important; min-height: unset !important;
+    width: auto !important; min-width: unset !important;
 }
 [data-testid="stTextInput"] input:focus {
     border-color: #29b6f6 !important;
