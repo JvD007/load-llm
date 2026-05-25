@@ -534,7 +534,7 @@ if not st.session_state.authenticated:
 }
 .uni-name {
     font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 2.5rem; font-weight: 900; letter-spacing: 0.3em;
+    font-size: 2.125rem; font-weight: 900; letter-spacing: 0.3em;
     color: #fff; text-transform: uppercase;
     text-shadow: 0 0 10px #29b6f6, 0 0 28px #0277bd, 0 0 65px #01579b;
     margin: 0 0 0.12rem 0;
