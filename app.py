@@ -629,7 +629,6 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
 }
 </style>
 
-<!-- 3D scene (fixed) -->
 <div id="lscene">
   <div class="grid"></div>
   <div class="horizon"></div>
@@ -638,82 +637,69 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
   <div class="vbeam vb3"></div>
   <div class="vbeam vb4"></div>
   <div class="racks">
-
-    <!-- Rack 1 -->
-    <div class="rack3d">
-      <div class="rt" style="width:60px"></div>
-      <div class="rf" style="width:60px">
-        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led x"></span></div>
-        <div class="dbay"></div>
-      </div>
-      <div class="rs"></div>
-    </div>
-
-    <!-- Rack 2 -->
-    <div class="rack3d">
-      <div class="rt" style="width:60px"></div>
-      <div class="rf" style="width:60px">
-        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led a"></span></div>
-        <div class="gbar"></div>
-        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
-        <div class="gbar"></div>
-      </div>
-      <div class="rs"></div>
-    </div>
-
-    <!-- Rack 3 — GPU cluster (wider + taller) -->
-    <div class="rack3d">
-      <div class="rt" style="width:78px"></div>
-      <div class="rf" style="width:78px">
-        <div class="lrow"><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led b"></span></div>
-        <div class="gbar"></div><div class="gbar"></div>
-        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
-        <div class="gbar"></div><div class="gbar"></div>
-        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
-        <div class="gbar"></div><div class="gbar"></div>
-      </div>
-      <div class="rs"></div>
-    </div>
-
-    <!-- Rack 4 -->
-    <div class="rack3d">
-      <div class="rt" style="width:60px"></div>
-      <div class="rf" style="width:60px">
-        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led x"></span></div>
-        <div class="dbay"></div>
-      </div>
-      <div class="rs"></div>
-    </div>
-
-    <!-- Rack 5 -->
-    <div class="rack3d">
-      <div class="rt" style="width:60px"></div>
-      <div class="rf" style="width:60px">
-        <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
-        <div class="dbay"></div>
-        <div class="gbar"></div>
-        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
-        <div class="dbay"></div><div class="dbay"></div>
-        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
-        <div class="gbar"></div>
-      </div>
-      <div class="rs"></div>
-    </div>
-
-  </div><!-- .racks -->
-</div><!-- #lscene -->
-
-<!-- Header text (floats above scene in normal Streamlit flow) -->
+  <div class="rack3d">
+  <div class="rt" style="width:60px"></div>
+  <div class="rf" style="width:60px">
+  <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led x"></span></div>
+  <div class="dbay"></div>
+  </div>
+  <div class="rs"></div>
+  </div>
+  <div class="rack3d">
+  <div class="rt" style="width:60px"></div>
+  <div class="rf" style="width:60px">
+  <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led a"></span></div>
+  <div class="gbar"></div>
+  <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+  <div class="gbar"></div>
+  </div>
+  <div class="rs"></div>
+  </div>
+  <div class="rack3d">
+  <div class="rt" style="width:78px"></div>
+  <div class="rf" style="width:78px">
+  <div class="lrow"><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led b"></span></div>
+  <div class="gbar"></div><div class="gbar"></div>
+  <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+  <div class="gbar"></div><div class="gbar"></div>
+  <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
+  <div class="gbar"></div><div class="gbar"></div>
+  </div>
+  <div class="rs"></div>
+  </div>
+  <div class="rack3d">
+  <div class="rt" style="width:60px"></div>
+  <div class="rf" style="width:60px">
+  <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led x"></span></div>
+  <div class="dbay"></div>
+  </div>
+  <div class="rs"></div>
+  </div>
+  <div class="rack3d">
+  <div class="rt" style="width:60px"></div>
+  <div class="rf" style="width:60px">
+  <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+  <div class="dbay"></div>
+  <div class="gbar"></div>
+  <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
+  <div class="dbay"></div><div class="dbay"></div>
+  <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
+  <div class="gbar"></div>
+  </div>
+  <div class="rs"></div>
+  </div>
+  </div>
+</div>
 <div class="lhdr">
   <div class="uni-name">Groningen University</div>
   <div class="uni-sub">◈ &nbsp; A I &nbsp; C o m p u t e &nbsp; D e p o t &nbsp; ◈</div>
