@@ -899,6 +899,14 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     st.rerun()
         if _LLM_OPTIONS:
             model_id = st.selectbox("Saved models", _LLM_OPTIONS, label_visibility="collapsed")
+            for _m in _LLM_OPTIONS:
+                _mc, _md = st.columns([5, 1])
+                _mc.caption(_m)
+                with _md:
+                    if st.button("✕", key=f"rm_{_m}", use_container_width=True):
+                        with open(_LLM_LIST_PATH, "w") as _lf:
+                            _lf.write("\n".join(m for m in _LLM_OPTIONS if m != _m) + "\n")
+                        st.rerun()
         else:
             model_id = _new_model.strip()
             st.caption("Type a model ID above and click **Add** to save it, or type one and deploy directly.")
