@@ -6,6 +6,7 @@ mistralai/Mistral-7B-Instruct-v0.1
 mistralai/Mistral-7B-Instruct-v0.2
 mistralai/Mistral-7B-Instruct-v0.3
 mistralai/Mistral-7B-Instruct-v0.4
+mistralai/Mistral-Small-3.1-24B-Instruct
 Qwen/Qwen2.5-0.5B-Instruct
 Qwen/Qwen2.5-1.5B-Instruct
 Qwen/Qwen2.5-3B-Instruct
