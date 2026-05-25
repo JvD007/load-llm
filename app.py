@@ -595,15 +595,16 @@ if not st.session_state.authenticated:
 div[data-testid="stButton"] button[kind="primary"] {
     background: linear-gradient(135deg, #01579b 0%, #0277bd 100%) !important;
     border: 1px solid rgba(41,182,246,0.55) !important;
-    color: #e3f2fd !important; font-weight: 700 !important;
-    letter-spacing: 0.28em !important; text-transform: uppercase !important;
-    border-radius: 6px !important;
-    box-shadow: 0 0 24px rgba(41,182,246,0.22), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+    color: #e3f2fd !important; font-weight: 600 !important;
+    letter-spacing: 0.12em !important; text-transform: none !important;
+    border-radius: 6px !important; font-size: 0.8rem !important;
+    padding: 0.35rem 1rem !important;
+    box-shadow: 0 0 18px rgba(41,182,246,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
     transition: all 0.2s ease !important;
 }
 div[data-testid="stButton"] button[kind="primary"]:hover {
     background: linear-gradient(135deg, #0277bd 0%, #039be5 100%) !important;
-    box-shadow: 0 0 40px rgba(41,182,246,0.48) !important;
+    box-shadow: 0 0 32px rgba(41,182,246,0.44) !important;
     transform: translateY(-1px) !important;
 }
 </style>
@@ -687,13 +688,13 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
 </div>
 """, unsafe_allow_html=True)
 
-    _, centre, _ = st.columns([1, 2, 1])
+    _, centre, _ = st.columns([3, 2, 3])
     with centre:
         st.markdown('<div class="access-label">⬡ &nbsp; Secure Access Terminal &nbsp; ⬡</div>',
                     unsafe_allow_html=True)
         platform_url_in = st.text_input("Platform URL", value=st.session_state.platform_url)
         token_in = st.text_input("User Token", type="password", placeholder="Enter your user token")
-        if st.button("⚡  Authenticate", type="primary", use_container_width=True):
+        if st.button("⚡  authenticate", type="primary", use_container_width=True):
             if not token_in.strip():
                 st.error("Please enter your user token.")
             else:
