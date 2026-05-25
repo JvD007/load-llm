@@ -15,17 +15,35 @@ st.set_page_config(page_title="Groningen University — AI Compute Depot", page_
 WHL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gridweave_sdk-0.2.0-py3-none-any.whl")
 WHL_URL  = "https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-0.2.0-py3-none-any.whl"
 
-_LLM_LIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm-list.txt")
-try:
-    with open(_LLM_LIST_PATH) as _f:
-        _LLM_OPTIONS = [line.strip() for line in _f if line.strip()]
-except Exception:
-    _LLM_OPTIONS = ["Qwen/Qwen2.5-0.5B-Instruct"]
+_DEFAULT_LLM_LIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm-list.txt")
+
+def _llm_list_path(uid: str | None) -> str:
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, f"llm-list-{uid}.txt") if uid else _DEFAULT_LLM_LIST
+
+def _load_llm_list(uid: str | None) -> list[str]:
+    paths = [_llm_list_path(uid), _DEFAULT_LLM_LIST] if uid else [_DEFAULT_LLM_LIST]
+    for path in paths:
+        try:
+            models = [l.strip() for l in open(path) if l.strip()]
+            if models:
+                return models
+        except Exception:
+            continue
+    return ["Qwen/Qwen2.5-0.5B-Instruct"]
+
+def _save_llm_list(models: list[str], uid: str | None):
+    try:
+        with open(_llm_list_path(uid), "w") as f:
+            f.write("\n".join(models) + "\n")
+    except Exception:
+        pass
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for _k, _v in [
     ("authenticated",  False),
-    ("admin_token",    ""),
+    ("user_token",     ""),
+    ("model_list",     None),
     ("platform_url",   "https://platform.gridweave.io"),
     ("action_state",   "idle"),
     ("action_label",   ""),
@@ -231,7 +249,7 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         _install_deps()
         import importlib, gridweave
         importlib.reload(gridweave)
-        gridweave.auth(cfg["admin_token"], platform_url=cfg["platform_url"])
+        gridweave.auth(cfg["user_token"], platform_url=cfg["platform_url"])
         q.put(("log", f"Deploying {cfg['model_id']} ({cfg['vram']}) as '{cfg['endpoint_name']}'…"))
         old = sys.stdout; sys.stdout = _Tee(old, q)
         try:
@@ -255,10 +273,10 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
         q.put(("error", _friendly_error(str(exc))))
 
 
-def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: queue.Queue):
+def _start_worker(name: str, user_token: str, platform_url: str, uid: str, q: queue.Queue):
     try:
         import gridweave
-        gridweave.auth(admin_token, platform_url=platform_url)
+        gridweave.auth(user_token, platform_url=platform_url)
         q.put(("log", f"Starting '{name}'…"))
         _gw_direct("post", f"/v1/endpoints/{name}/start")
         t0 = time.time()
@@ -290,12 +308,12 @@ def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: q
 
 
 def _gpu_detect_worker(vendor: str, vram_gb: int,
-                        admin_token: str, platform_url: str,
+                        user_token: str, platform_url: str,
                         q: queue.Queue):
     """Runs nvidia-smi / rocm-smi on a matching remote worker to get the real GPU name."""
     try:
         import gridweave
-        gridweave.auth(admin_token, platform_url=platform_url)
+        gridweave.auth(user_token, platform_url=platform_url)
 
         def _probe():
             import os, subprocess
@@ -361,7 +379,7 @@ def _start_gpu_detect(vendor: str, vram_gb: int):
     threading.Thread(
         target=_gpu_detect_worker,
         args=(vendor, vram_gb,
-              st.session_state.admin_token,
+              st.session_state.user_token,
               st.session_state.platform_url,
               st.session_state._gpu_queue),
         daemon=True,
@@ -541,12 +559,12 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
                         import gridweave as _gw_check
                         _gw_check.auth(token_in.strip(), platform_url=platform_url_in)
                         _gw_check.endpoints()
-                        st.session_state.admin_token   = token_in.strip()
+                        st.session_state.user_token   = token_in.strip()
                         st.session_state.platform_url  = platform_url_in
                         st.session_state.authenticated = True
                         st.rerun()
                     except ImportError:
-                        st.session_state.admin_token   = token_in.strip()
+                        st.session_state.user_token   = token_in.strip()
                         st.session_state.platform_url  = platform_url_in
                         st.session_state.authenticated = True
                         st.rerun()
@@ -666,12 +684,12 @@ div[data-testid="stButton"] button[kind="secondary"]:hover {
 
 try:
     import gridweave as _gw
-    _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
+    _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
     _gw_available = True
 except ImportError:
     _gw_available = False
 
-_token_warn = _token_warning(st.session_state.admin_token)
+_token_warn = _token_warning(st.session_state.user_token)
 if _token_warn:
     st.warning(_token_warn)
 
@@ -690,14 +708,14 @@ with h_left:
 with h_right:
     st.write("")
     if st.button("Logout", use_container_width=True):
-        for k in ["authenticated", "admin_token", "endpoint", "chat_history",
+        for k in ["authenticated", "user_token", "model_list", "endpoint", "chat_history",
                   "action_state", "action_log", "action_error", "_result_queue",
                   "gpu_cache", "_gpu_detecting", "_gpu_queue"]:
             st.session_state[k] = (
                 False  if k == "authenticated" else
-                ""     if k == "admin_token"   else
+                ""     if k == "user_token"    else
+                None   if k in ("model_list", "endpoint", "action_error", "_result_queue", "_gpu_queue") else
                 "idle" if k == "action_state"  else
-                None   if k in ("endpoint", "action_error", "_result_queue", "_gpu_queue") else
                 set()  if k == "_gpu_detecting" else
                 {}     if k == "gpu_cache"      else [])
         st.rerun()
@@ -713,7 +731,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         with ref_col: st.button("🔄 Refresh", use_container_width=True)
 
         try:
-            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
+            _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
             eps = _gw.endpoints()
             hw  = _hw_lookup()
         except Exception as e:
@@ -785,24 +803,24 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 with c8:
                     if status == "running":
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
-                            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
+                            _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
                             _gw_direct("post", f"/v1/endpoints/{name}/stop")
                             if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                                 st.session_state.endpoint = None
                             st.rerun()
                     elif status == "stopped":
                         if st.button("Start", key=f"start_{name}", use_container_width=True):
-                            _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
+                            _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
                             st.session_state.action_state = "busy"
                             st.session_state.action_label = f"Starting '{display_name}'…"
                             st.session_state.action_log   = []
                             st.session_state.action_error = None
-                            _launch(_start_worker, (name, st.session_state.admin_token,
+                            _launch(_start_worker, (name, st.session_state.user_token,
                                                     st.session_state.platform_url, _uid))
                             st.rerun()
                 with c9:
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
-                        _gw.auth(st.session_state.admin_token, platform_url=st.session_state.platform_url)
+                        _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
                         _gw_direct("delete", f"/v1/endpoints/{name}")
                         if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
                             st.session_state.endpoint = None
@@ -887,25 +905,30 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
 
     ma, mb, mc = st.columns(3)
     with ma:
+        _uid_ml = st.session_state.get("_cached_uid")
+        if st.session_state.model_list is None:
+            st.session_state.model_list = _load_llm_list(_uid_ml)
+        _llm_opts = st.session_state.model_list
+
         _inp_c, _btn_c = st.columns([5, 1])
         with _inp_c:
             _new_model = st.text_input("Model ID", placeholder="org/model-name", key="new_model_input")
         with _btn_c:
             st.write("")
             if st.button("Add", key="add_model_btn", use_container_width=True):
-                if _new_model.strip() and _new_model.strip() not in _LLM_OPTIONS:
-                    with open(_LLM_LIST_PATH, "a") as _lf:
-                        _lf.write(_new_model.strip() + "\n")
+                if _new_model.strip() and _new_model.strip() not in _llm_opts:
+                    st.session_state.model_list = _llm_opts + [_new_model.strip()]
+                    _save_llm_list(st.session_state.model_list, _uid_ml)
                     st.rerun()
-        if _LLM_OPTIONS:
-            model_id = st.selectbox("Saved models", _LLM_OPTIONS, label_visibility="collapsed")
-            for _m in _LLM_OPTIONS:
+        if _llm_opts:
+            model_id = st.selectbox("Saved models", _llm_opts, label_visibility="collapsed")
+            for _m in _llm_opts:
                 _mc, _md = st.columns([5, 1])
                 _mc.caption(_m)
                 with _md:
                     if st.button("✕", key=f"rm_{_m}", use_container_width=True):
-                        with open(_LLM_LIST_PATH, "w") as _lf:
-                            _lf.write("\n".join(m for m in _LLM_OPTIONS if m != _m) + "\n")
+                        st.session_state.model_list = [m for m in _llm_opts if m != _m]
+                        _save_llm_list(st.session_state.model_list, _uid_ml)
                         st.rerun()
         else:
             model_id = _new_model.strip()
@@ -918,7 +941,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
         if st.button("🚀 Deploy", type="primary", use_container_width=True):
             if not model_id:
                 st.error("Please enter a Model ID.")
-            elif not _token_ok(st.session_state.admin_token):
+            elif not _token_ok(st.session_state.user_token):
                 st.error("Your GridWeave session has expired. Please log out and log in again.")
             else:
                 st.session_state.action_state = "busy"
@@ -927,7 +950,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 st.session_state.action_error = None
                 _launch(_deploy_worker, (dict(
                     platform_url=st.session_state.platform_url,
-                    admin_token=st.session_state.admin_token,
+                    user_token=st.session_state.user_token,
                     hf_token=hf_token,
                     s3_endpoint=s3_endpoint,
                     s3_access_key=s3_access_key,
