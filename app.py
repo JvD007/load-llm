@@ -242,6 +242,7 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
             ep = gridweave.serve(**serve_kwargs)
         finally:
             sys.stdout = old
+        ep.name = _ep_short_name(ep.name)
         q.put(("done", ep))
     except Exception as exc:
         q.put(("error", _friendly_error(str(exc))))
@@ -272,7 +273,7 @@ def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: q
         data = _gw_direct("get", f"/v1/endpoints/{qname}")
         from gridweave.serve import Endpoint
         ep = Endpoint(
-            name=data["name"], status="running",
+            name=data.get("display_name") or _ep_short_name(data["name"]), status="running",
             endpoint_type=data.get("endpoint_type", "vllm"),
             model=data.get("model", ""), image=data.get("image", ""),
             gpus=data.get("gpus", 1), vendor=data.get("vendor"), spec=data.get("spec"),
