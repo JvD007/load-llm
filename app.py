@@ -885,6 +885,26 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                 help="Name of the bucket where your model files are stored.",
             )
 
+    with st.expander("📋 Model List", expanded=False):
+        add_col, btn_col = st.columns([4, 1])
+        with add_col:
+            new_model = st.text_input("New model ID", placeholder="org/model-name",
+                                      label_visibility="collapsed", key="new_model_input")
+        with btn_col:
+            if st.button("Add", use_container_width=True, key="add_model_btn"):
+                if new_model.strip() and new_model.strip() not in _LLM_OPTIONS:
+                    with open(_LLM_LIST_PATH, "w") as _lf:
+                        _lf.write("\n".join(_LLM_OPTIONS + [new_model.strip()]) + "\n")
+                    st.rerun()
+        for _m in _LLM_OPTIONS:
+            mc_col, md_col = st.columns([5, 1])
+            mc_col.write(_m)
+            with md_col:
+                if st.button("✕", key=f"del_model_{_m}", use_container_width=True):
+                    with open(_LLM_LIST_PATH, "w") as _lf:
+                        _lf.write("\n".join(m for m in _LLM_OPTIONS if m != _m) + "\n")
+                    st.rerun()
+
     ma, mb, mc = st.columns(3)
     with ma: model_id      = st.selectbox("Model ID", _LLM_OPTIONS)
     with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
