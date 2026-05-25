@@ -1,5 +1,4 @@
-!curl -sLO https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-0.2.0-py3-none-any.whl
-!pip install --quiet --force-reinstall --no-deps gridweave_sdk-0.2.0-py3-none-any.whl
+!export V=$(curl -s https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/sdk-latest-version.txt) && pip install --quiet --force-reinstall --no-deps https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-${V}-py3-none-any.whl
 import gridweave
 print(f"gridweave v{gridweave.__version__}")
 
