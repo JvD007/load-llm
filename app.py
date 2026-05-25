@@ -253,12 +253,11 @@ def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: q
         import gridweave
         gridweave.auth(admin_token, platform_url=platform_url)
         q.put(("log", f"Starting '{name}'…"))
-        qname = _gw_qname(name, uid)
-        _gw_direct("post", f"/v1/endpoints/{qname}/start")
+        _gw_direct("post", f"/v1/endpoints/{name}/start")
         t0 = time.time()
         while True:
             try:
-                h = _gw_direct("get", f"/v1/endpoints/{qname}/health")
+                h = _gw_direct("get", f"/v1/endpoints/{name}/health")
                 if h.get("failure"):
                     raise RuntimeError(f"Start failed: {h.get('failure_reason', 'unknown')}")
                 if h.get("db_status") == "running":
@@ -270,7 +269,7 @@ def _start_worker(name: str, admin_token: str, platform_url: str, uid: str, q: q
             except Exception:
                 pass
             time.sleep(3)
-        data = _gw_direct("get", f"/v1/endpoints/{qname}")
+        data = _gw_direct("get", f"/v1/endpoints/{name}")
         from gridweave.serve import Endpoint
         ep = Endpoint(
             name=data.get("display_name") or _ep_short_name(data["name"]), status="running",
@@ -988,7 +987,7 @@ if st.session_state.endpoint:
                 with st.spinner("Thinking…"):
                     try:
                         # Use the short name (after "--") for the inference proxy
-                        _ep_api_name = _gw_qname(ep_bare, st.session_state.get("_cached_uid"))
+                        _ep_api_name = ep_bare
                         if _is_instruct:
                             data = _gw_direct(
                                 "post",
