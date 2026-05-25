@@ -887,7 +887,21 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
 
     ma, mb, mc = st.columns(3)
     with ma:
-        model_id = st.selectbox("Model ID", _LLM_OPTIONS)
+        _inp_c, _btn_c = st.columns([5, 1])
+        with _inp_c:
+            _new_model = st.text_input("Model ID", placeholder="org/model-name", key="new_model_input")
+        with _btn_c:
+            st.write("")
+            if st.button("Add", key="add_model_btn", use_container_width=True):
+                if _new_model.strip() and _new_model.strip() not in _LLM_OPTIONS:
+                    with open(_LLM_LIST_PATH, "a") as _lf:
+                        _lf.write(_new_model.strip() + "\n")
+                    st.rerun()
+        if _LLM_OPTIONS:
+            model_id = st.selectbox("Saved models", _LLM_OPTIONS, label_visibility="collapsed")
+        else:
+            model_id = _new_model.strip()
+            st.caption("Type a model ID above and click **Add** to save it, or type one and deploy directly.")
     with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
     with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 
