@@ -17,6 +17,7 @@ HF_TOKEN = "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"
 endpoint_name = "llama-eric"
 model = "meta-llama/Llama-3.2-1B"
 vram = "4GB"
+gpus = 1
 
 gridweave.auth(ADMIN_TOKEN, platform_url=PLATFORM_URL)
 
@@ -24,6 +25,7 @@ ep = gridweave.serve(
     model=model,
     hf_token=HF_TOKEN,
     vram=vram,
+    gpus=gpus,
     name=endpoint_name,
 )
 
