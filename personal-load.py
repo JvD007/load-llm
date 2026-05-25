@@ -14,12 +14,14 @@ R2_BUCKET = "gridweave"
 # HuggingFace (gated models)
 HF_TOKEN = "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"
 
+endpoint_name = "llama-eric"
+
 gridweave.auth(ADMIN_TOKEN, platform_url=PLATFORM_URL)
 
 ep = gridweave.serve(
     model="meta-llama/Llama-3.2-1B",
     hf_token=HF_TOKEN,
     vram="4GB",
-    name="llama-eric",
+    name=endpoint_name,
 )
 
