@@ -476,7 +476,9 @@ if not st.session_state.authenticated:
 
 /* ── Server rack row ── */
 #lscene .racks {
-    position: absolute; bottom: 28.5%; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 28.5%; left: 50%;
+    transform: translateX(-50%) scale(1.9);
+    transform-origin: center bottom;
     display: flex; gap: 20px; align-items: flex-end;
 }
 
