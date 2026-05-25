@@ -444,7 +444,7 @@ if not st.session_state.authenticated:
 
 /* Perspective grid floor */
 #lscene .grid {
-    position: absolute; bottom: 0; left: -50%; right: -50%; height: 20%;
+    position: absolute; bottom: 0; left: -50%; right: -50%; height: 15%;
     background-image:
         linear-gradient(rgba(41,182,246,0.13) 1px, transparent 1px),
         linear-gradient(90deg, rgba(41,182,246,0.13) 1px, transparent 1px);
@@ -457,14 +457,14 @@ if not st.session_state.authenticated:
 
 /* Horizon glow */
 #lscene .horizon {
-    position: absolute; bottom: 20%; left: 0; right: 0; height: 2px;
+    position: absolute; bottom: 15%; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, transparent 0%, #0277bd 12%, #29b6f6 50%, #0277bd 88%, transparent 100%);
     box-shadow: 0 0 50px 14px rgba(41,182,246,0.2), 0 -40px 80px rgba(41,182,246,0.05);
 }
 
 /* Vertical light beams */
 .vbeam {
-    position: absolute; bottom: 20%; width: 2px; top: 0;
+    position: absolute; bottom: 15%; width: 2px; top: 0;
     background: linear-gradient(180deg, transparent 5%, rgba(41,182,246,0.03) 55%, rgba(41,182,246,0.16) 100%);
     animation: bp 4s ease-in-out infinite;
 }
@@ -476,7 +476,7 @@ if not st.session_state.authenticated:
 
 /* ── Server rack row ── */
 #lscene .racks {
-    position: absolute; bottom: 18%; left: 50%;
+    position: absolute; bottom: 13%; left: 50%;
     transform: translateX(-50%) scale(1.5);
     transform-origin: center bottom;
     display: flex; gap: 20px; align-items: flex-end;
