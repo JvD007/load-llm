@@ -586,9 +586,6 @@ if not st.session_state.authenticated:
     color: #e3f2fd !important; border-radius: 6px !important;
     font-family: 'Courier New', monospace !important;
     font-size: 0.72rem !important;
-    padding: 0.3rem 0.6rem !important;
-    height: auto !important; min-height: unset !important;
-    width: auto !important; min-width: unset !important;
 }
 [data-testid="stTextInput"] input:focus {
     border-color: #29b6f6 !important;
