@@ -15,6 +15,13 @@ st.set_page_config(page_title="Groningen University — AI Compute Depot", page_
 WHL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gridweave_sdk-0.2.0-py3-none-any.whl")
 WHL_URL  = "https://pub-cbb8992ad1bd437b81d58d5b2da09787.r2.dev/tarball/gridweave_sdk-0.2.0-py3-none-any.whl"
 
+_LLM_LIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm-list.txt")
+try:
+    with open(_LLM_LIST_PATH) as _f:
+        _LLM_OPTIONS = [line.strip() for line in _f if line.strip()]
+except Exception:
+    _LLM_OPTIONS = ["Qwen/Qwen2.5-0.5B-Instruct"]
+
 # ── Session state ─────────────────────────────────────────────────────────────
 for _k, _v in [
     ("authenticated",  False),
@@ -879,7 +886,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
             )
 
     ma, mb, mc = st.columns(3)
-    with ma: model_id      = st.text_input("Model ID",      value="Qwen/Qwen2.5-0.5B")
+    with ma: model_id      = st.selectbox("Model ID", _LLM_OPTIONS)
     with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
     with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 

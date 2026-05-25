@@ -1,0 +1,13 @@
+meta-llama/Meta-Llama-3.1-8B-Instruct
+meta-llama/Meta-Llama-3-8B-Instruct
+mistralai/Mistral-7B-Instruct-v0.1
+mistralai/Mistral-7B-Instruct-v0.2
+mistralai/Mistral-7B-Instruct-v0.3
+Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen2.5-1.5B-Instruct
+Qwen/Qwen2.5-3B-Instruct
+Qwen/Qwen2.5-7B-Instruct
+deepseek-ai/deepseek-llm-7b-chat
+microsoft/Phi-3-mini-128k-instruct
+Snowflake/snowflake-arctic-instruct
+
