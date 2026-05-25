@@ -1034,13 +1034,12 @@ if st.session_state.endpoint:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
                     try:
-                        # Use the short name (after "--") for the inference proxy
-                        _ep_api_name = ep_bare
                         if _is_instruct:
                             data = _gw_direct(
                                 "post",
-                                f"/v1/endpoints/{_ep_api_name}/v1/chat/completions",
-                                json={"messages": [{"role": m["role"], "content": m["content"]}
+                                "/v1/chat/completions",
+                                json={"model": ep_bare,
+                                      "messages": [{"role": m["role"], "content": m["content"]}
                                                    for m in st.session_state.chat_history],
                                       "max_tokens": max_tokens, "temperature": temperature},
                             )
@@ -1052,14 +1051,15 @@ if st.session_state.endpoint:
                             ) + "\nAssistant:"
                             data = _gw_direct(
                                 "post",
-                                f"/v1/endpoints/{_ep_api_name}/v1/completions",
-                                json={"prompt": prompt_text, "max_tokens": max_tokens,
+                                "/v1/completions",
+                                json={"model": ep_bare,
+                                      "prompt": prompt_text, "max_tokens": max_tokens,
                                       "temperature": temperature},
                             )
                             raw = data["choices"][0]["text"]
                             response = re.split(r"\n(User|Assistant):", raw)[0].strip()
                     except Exception as exc:
-                        response = f"⚠️ Error: {exc}\n\n(ep.name={ep.name!r}, ep_bare={ep_bare!r}, api={_ep_api_name!r})"
+                        response = f"⚠️ Error: {exc}\n\n(ep.name={ep.name!r}, ep_bare={ep_bare!r})"
                 st.write(response)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
