@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-05-25
+### Added
+- 3D login screen: full-viewport fixed background with CSS perspective grid floor, glowing horizon, vertical light beams, and five floating server rack columns
+- Inline SVG Dell PowerEdge 1U server graphics inside each rack — drive bays with SMIL-animated activity LEDs, iDRAC indicator, pulsing power button, and GPU module bar on the centre GPU rack
+- Glassmorphism login card (backdrop-filter blur) over the 3D scene
+- Per-user model lists stored as `llm-list-{uid}.txt` with fallback to shared `llm-list.txt`
+- User-managed model list UI: type any `org/model-name`, click **Add** to persist; ✕ button removes individual entries
+
+### Changed
+- Inference routing switched to top-level `/v1/chat/completions` with `model` field — uses the authenticated user token's namespace for routing, replacing the broken per-endpoint proxy path
+- Stop, Start, Delete buttons now use `display_name` (short endpoint name), consistent with the Chat button
+- `admin_token` renamed to `user_token` throughout; login token is used for all deploy and management API calls
+- Login card narrowed to 25 % of content width; Authenticate button text lowercased and padding reduced
+- Title font reduced by 15 % (2.5 rem → 2.125 rem); input labels and text set in smaller Courier New
+
+### Fixed
+- Chat 404 for user-prefixed endpoints (e.g. `User--endpoint-name`) — resolved by using the top-level inference API instead of the per-endpoint proxy
+- Stop/Start/Delete 404 caused by passing the fully-qualified name where only the short display name is accepted
+- Removed debug expander from Endpoint Manager section
+- Multi-user session isolation: each user's model list is stored and loaded independently per session
+
 ## [1.5.1] — 2026-05-21
 ### Fixed
 - Chat/generate 404 "Endpoint not found": inference proxy requires the short name after `--` (e.g. `llama-test-app`), not the full display-prefixed name; `ep_bare` is now used for all inference proxy URLs

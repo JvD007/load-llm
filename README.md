@@ -76,6 +76,13 @@ sudo journalctl -u gridweave-depot -f
 
 ## Release notes
 
+### v1.6.0 — 2026-05-25
+- 3D login screen with CSS perspective grid floor, glowing horizon, light beams, and five floating server rack columns
+- Inline SVG Dell PowerEdge 1U server graphics with animated LEDs and GPU module bar
+- Glassmorphism login card over the 3D scene
+- Per-user model lists (`llm-list-{uid}.txt`); user-managed add/remove UI
+- Inference routing switched to top-level `/v1/chat/completions`; Stop/Start/Delete use short endpoint names
+
 ### v1.4.0 — 2026-05-20
 - Added `SECURITY.md` with vulnerability reporting policy
 - Added `CODE_OF_CONDUCT.md` based on Contributor Covenant v2.1
