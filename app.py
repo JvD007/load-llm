@@ -267,7 +267,6 @@ def _deploy_worker(cfg: dict, q: queue.Queue):
             ep = gridweave.serve(**serve_kwargs)
         finally:
             sys.stdout = old
-        ep.name = _ep_short_name(ep.name)
         q.put(("done", ep))
     except Exception as exc:
         q.put(("error", _friendly_error(str(exc))))
@@ -297,7 +296,7 @@ def _start_worker(name: str, user_token: str, platform_url: str, uid: str, q: qu
         data = _gw_direct("get", f"/v1/endpoints/{name}")
         from gridweave.serve import Endpoint
         ep = Endpoint(
-            name=data.get("display_name") or _ep_short_name(data["name"]), status="running",
+            name=data.get("name"), status="running",
             endpoint_type=data.get("endpoint_type", "vllm"),
             model=data.get("model", ""), image=data.get("image", ""),
             gpus=data.get("gpus", 1), vendor=data.get("vendor"), spec=data.get("spec"),
@@ -788,7 +787,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=display_name, status="running",
+                            name=name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
@@ -801,7 +800,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                         if st.button("Stop", key=f"stop_{name}", use_container_width=True):
                             _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
                             _gw_direct("post", f"/v1/endpoints/{display_name}/stop")
-                            if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
+                            if st.session_state.endpoint and st.session_state.endpoint.name in (name, display_name):
                                 st.session_state.endpoint = None
                             st.rerun()
                     elif status == "stopped":
@@ -818,7 +817,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if st.button("Delete", key=f"del_{name}", use_container_width=True):
                         _gw.auth(st.session_state.user_token, platform_url=st.session_state.platform_url)
                         _gw_direct("delete", f"/v1/endpoints/{display_name}")
-                        if st.session_state.endpoint and st.session_state.endpoint.name == display_name:
+                        if st.session_state.endpoint and st.session_state.endpoint.name in (name, display_name):
                             st.session_state.endpoint = None
                         st.rerun()
         else:
@@ -854,7 +853,7 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     if status == "running" and st.button("Chat", key=f"chat_{name}", use_container_width=True):
                         from gridweave.serve import Endpoint
                         st.session_state.endpoint = Endpoint(
-                            name=display_name, status="running",
+                            name=name, status="running",
                             endpoint_type=ep_info.get("endpoint_type", "vllm"),
                             model=ep_info.get("model", ""), image=ep_info.get("image", ""),
                             gpus=ep_info.get("gpus", 1), vendor=ep_info.get("vendor"),
@@ -974,7 +973,7 @@ if st.session_state.endpoint:
     try:
         _active_hw = _hw_lookup() if _gw_available else {}
         _ep_info   = {}
-        ep_bare = ep.name  # ep.name is always the display_name short name now
+        ep_bare = ep.name  # full API name e.g. "User--endpoint-name"
         _cu = st.session_state.get("_cached_uid")
         for _e in _gw.endpoints():
             if _e.get("display_name") == ep_bare or _e.get("name") == ep_bare:
