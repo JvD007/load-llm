@@ -906,7 +906,11 @@ with st.expander("📡 Endpoint Manager", expanded=(st.session_state.endpoint is
                     st.rerun()
 
     ma, mb, mc = st.columns(3)
-    with ma: model_id      = st.selectbox("Model ID", _LLM_OPTIONS)
+    with ma:
+        _model_select = st.selectbox("Model ID", _LLM_OPTIONS)
+        _model_custom = st.text_input("Custom model ID", placeholder="org/model-name",
+                                      help="Overrides the dropdown above.")
+        model_id = _model_custom.strip() if _model_custom.strip() else _model_select
     with mb: vram          = st.selectbox("VRAM", ["4GB","8GB","16GB","24GB","40GB","80GB"])
     with mc: endpoint_name = st.text_input("Endpoint Name", value="llama-eric")
 
