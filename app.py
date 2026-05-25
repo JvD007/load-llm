@@ -430,117 +430,294 @@ _gpu_poll()
 if not st.session_state.authenticated:
     st.markdown("""
 <style>
-[data-testid="stAppViewContainer"] {
-    background: radial-gradient(ellipse at 50% -10%, #0d2045 0%, #020c1e 55%, #010810 100%);
-}
+/* ── Reset ── */
+[data-testid="stAppViewContainer"] { background: #010810 !important; }
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"] { display: none; }
 #MainMenu, footer { visibility: hidden; }
 
-.depot-wrap { text-align: center; padding-top: 2.5rem; }
-
-.depot-ascii {
-    display: inline-block;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.58rem;
-    line-height: 1.4;
-    color: #29b6f6;
-    text-shadow: 0 0 6px #29b6f6, 0 0 16px #0277bd;
-    white-space: pre;
-    letter-spacing: 0.06em;
+/* ── Full-page 3D scene (fixed behind everything) ── */
+#lscene {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 5%, #0b1e45 0%, #020c1e 50%, #010810 100%);
 }
 
-.scanline {
-    width: 62%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #29b6f6 20%, #e3f2fd 50%, #29b6f6 80%, transparent);
-    box-shadow: 0 0 10px #29b6f6, 0 0 22px #0277bd;
-    margin: 1.4rem auto 0.8rem auto;
+/* Perspective grid floor */
+#lscene .grid {
+    position: absolute; bottom: 0; left: -50%; right: -50%; height: 48%;
+    background-image:
+        linear-gradient(rgba(41,182,246,0.13) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(41,182,246,0.13) 1px, transparent 1px);
+    background-size: 72px 72px;
+    transform: perspective(440px) rotateX(76deg);
+    transform-origin: center bottom;
+    mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 72%);
 }
 
-.uni-title {
+/* Horizon glow */
+#lscene .horizon {
+    position: absolute; bottom: 48%; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #0277bd 12%, #29b6f6 50%, #0277bd 88%, transparent 100%);
+    box-shadow: 0 0 50px 14px rgba(41,182,246,0.2), 0 -40px 80px rgba(41,182,246,0.05);
+}
+
+/* Vertical light beams */
+.vbeam {
+    position: absolute; bottom: 48%; width: 2px; top: 0;
+    background: linear-gradient(180deg, transparent 5%, rgba(41,182,246,0.03) 55%, rgba(41,182,246,0.16) 100%);
+    animation: bp 4s ease-in-out infinite;
+}
+.vb1 { left: 18%; animation-delay: 0s; }
+.vb2 { left: 35%; animation-delay: -1.4s; }
+.vb3 { left: 65%; animation-delay: -2.8s; }
+.vb4 { left: 82%; animation-delay: -0.7s; }
+@keyframes bp { 0%,100%{opacity:.55} 50%{opacity:1} }
+
+/* ── Server rack row ── */
+#lscene .racks {
+    position: absolute; bottom: 46.5%; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 20px; align-items: flex-end;
+}
+
+/* Individual rack wrapper */
+.rack3d {
+    position: relative;
+    display: flex; flex-direction: column;
+    filter: drop-shadow(0 0 14px rgba(41,182,246,0.2));
+    animation: rf 7s ease-in-out infinite;
+}
+.rack3d:nth-child(1){animation-delay:0s}
+.rack3d:nth-child(2){animation-delay:-2.2s}
+.rack3d:nth-child(3){animation-delay:-1.1s;animation-duration:5.8s}
+.rack3d:nth-child(4){animation-delay:-3.6s}
+.rack3d:nth-child(5){animation-delay:-0.6s;animation-duration:8.2s}
+@keyframes rf { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+/* Top face (isometric illusion via skew) */
+.rack3d .rt {
+    height: 12px;
+    background: linear-gradient(135deg, #1e4e84 0%, #0d2d58 55%, #061f3e 100%);
+    border: 1px solid rgba(41,182,246,0.55); border-bottom: none;
+    transform: skewX(-28deg);
+    margin-left: 7px; /* aligns skewed bottom-left with front face x=0 */
+    flex-shrink: 0;
+}
+
+/* Front face */
+.rack3d .rf {
+    background: linear-gradient(160deg, #0d2548 0%, #061830 55%, #030e22 100%);
+    border: 1px solid rgba(41,182,246,0.48);
+    border-top: none;
+    padding: 5px 4px; display: flex; flex-direction: column; gap: 4px;
+}
+
+/* Right-side shadow strip (depth cue) */
+.rack3d .rs {
+    position: absolute; right: -10px; top: 12px;
+    width: 10px;
+    background: linear-gradient(180deg, #041228 0%, #020c1e 100%);
+    border: 1px solid rgba(41,182,246,0.16); border-left: none;
+    bottom: 0;
+    transform: skewY(-2deg); transform-origin: top left;
+}
+
+/* LEDs */
+.lrow { display:flex; gap:4px; padding:1px 2px; align-items:center; }
+.led  { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.led.g { background:#00e676; box-shadow:0 0 6px #00e676; animation:bg 2.6s ease-in-out infinite; }
+.led.b { background:#29b6f6; box-shadow:0 0 6px #29b6f6; animation:bb 3.3s ease-in-out infinite; }
+.led.a { background:#ff9100; box-shadow:0 0 5px #ff9100; }
+.led.x { background:#0e1e30; }
+@keyframes bg { 0%,100%{opacity:1} 96%{opacity:.15} }
+@keyframes bb { 0%,100%{opacity:1} 93%{opacity:.12} }
+
+/* Drive bays */
+.dbay {
+    height: 7px;
+    background: linear-gradient(90deg, #041020 0%, #0a1e38 50%, #041020 100%);
+    border: 1px solid rgba(41,182,246,0.11); border-radius:1px;
+}
+
+/* GPU bars */
+.gbar {
+    height: 13px;
+    background: linear-gradient(90deg, #041020 0%, #0e2e60 32%, rgba(41,182,246,0.65) 50%, #0e2e60 68%, #041020 100%);
+    border: 1px solid rgba(41,182,246,0.35); border-radius:2px;
+    animation: gp 2.2s ease-in-out infinite;
+}
+@keyframes gp { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+/* ── Floating header above the scene ── */
+.lhdr {
+    position: relative; z-index: 10;
+    text-align: center; padding-top: 1.8rem;
+}
+.uni-name {
     font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 2.7rem;
-    font-weight: 900;
-    letter-spacing: 0.3em;
-    color: #ffffff;
-    text-transform: uppercase;
-    text-shadow: 0 0 8px #29b6f6, 0 0 24px #0277bd, 0 0 55px #01579b;
-    margin: 0.3rem 0 0.15rem 0;
+    font-size: 2.5rem; font-weight: 900; letter-spacing: 0.3em;
+    color: #fff; text-transform: uppercase;
+    text-shadow: 0 0 10px #29b6f6, 0 0 28px #0277bd, 0 0 65px #01579b;
+    margin: 0 0 0.12rem 0;
 }
-
 .uni-sub {
     font-family: 'Courier New', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.6em;
-    color: #29b6f6;
-    text-transform: uppercase;
-    text-shadow: 0 0 8px #29b6f6;
-    margin-bottom: 0.4rem;
-    opacity: 0.9;
+    font-size: 0.67rem; letter-spacing: 0.56em;
+    color: #29b6f6; text-transform: uppercase;
+    text-shadow: 0 0 8px #29b6f6; opacity: 0.9;
+}
+.scanline {
+    width: 52%; height: 1px; margin: 1.1rem auto 0.6rem;
+    background: linear-gradient(90deg, transparent, #29b6f6 20%, #e3f2fd 50%, #29b6f6 80%, transparent);
+    box-shadow: 0 0 10px #29b6f6, 0 0 24px #0277bd;
+}
+
+/* ── Glassmorphism login card (center Streamlit column) ── */
+[data-testid="column"]:nth-child(2) > div:first-child {
+    background: rgba(2,14,36,0.82) !important;
+    border: 1px solid rgba(41,182,246,0.32) !important;
+    border-radius: 16px !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    box-shadow:
+        0 0 0 1px rgba(41,182,246,0.05),
+        0 12px 40px rgba(0,0,0,0.55),
+        0 0 70px rgba(41,182,246,0.07),
+        inset 0 1px 0 rgba(255,255,255,0.06) !important;
+    padding: 1.7rem 1.5rem 2rem !important;
+    position: relative !important; z-index: 10 !important;
 }
 
 .access-label {
-    color: #81d4fa;
-    font-size: 0.68rem;
-    letter-spacing: 0.4em;
-    text-align: center;
-    font-family: 'Courier New', monospace;
-    text-transform: uppercase;
-    margin: 1.2rem 0 0.6rem 0;
+    color: #81d4fa; font-size: 0.62rem; letter-spacing: 0.44em;
+    text-align: center; font-family: 'Courier New', monospace;
+    text-transform: uppercase; margin: 0 0 1rem 0;
     text-shadow: 0 0 6px #29b6f6;
 }
 
+/* Form inputs */
 [data-testid="stTextInput"] > label {
-    color: #81d4fa !important;
-    font-size: 0.68rem !important;
-    letter-spacing: 0.2em !important;
-    text-transform: uppercase !important;
+    color: #81d4fa !important; font-size: 0.62rem !important;
+    letter-spacing: 0.18em !important; text-transform: uppercase !important;
     font-family: 'Courier New', monospace !important;
 }
 [data-testid="stTextInput"] input {
-    background: rgba(1, 18, 40, 0.88) !important;
-    border: 1px solid rgba(41, 182, 246, 0.4) !important;
-    color: #e3f2fd !important;
-    border-radius: 4px !important;
+    background: rgba(1,18,44,0.92) !important;
+    border: 1px solid rgba(41,182,246,0.3) !important;
+    color: #e3f2fd !important; border-radius: 6px !important;
+    font-family: 'Courier New', monospace !important;
 }
 [data-testid="stTextInput"] input:focus {
     border-color: #29b6f6 !important;
-    box-shadow: 0 0 0 1px rgba(41,182,246,0.55), 0 0 14px rgba(41,182,246,0.22) !important;
+    box-shadow: 0 0 0 1px rgba(41,182,246,0.45), 0 0 18px rgba(41,182,246,0.18) !important;
 }
+
+/* Authenticate button */
 div[data-testid="stButton"] button[kind="primary"] {
     background: linear-gradient(135deg, #01579b 0%, #0277bd 100%) !important;
-    border: 1px solid #29b6f6 !important;
-    color: #e3f2fd !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.28em !important;
-    text-transform: uppercase !important;
-    border-radius: 4px !important;
-    box-shadow: 0 0 18px rgba(41,182,246,0.28) !important;
+    border: 1px solid rgba(41,182,246,0.55) !important;
+    color: #e3f2fd !important; font-weight: 700 !important;
+    letter-spacing: 0.28em !important; text-transform: uppercase !important;
+    border-radius: 6px !important;
+    box-shadow: 0 0 24px rgba(41,182,246,0.22), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+    transition: all 0.2s ease !important;
 }
 div[data-testid="stButton"] button[kind="primary"]:hover {
-    background: linear-gradient(135deg, #0277bd 0%, #0288d1 100%) !important;
-    box-shadow: 0 0 28px rgba(41,182,246,0.48) !important;
+    background: linear-gradient(135deg, #0277bd 0%, #039be5 100%) !important;
+    box-shadow: 0 0 40px rgba(41,182,246,0.48) !important;
+    transform: translateY(-1px) !important;
 }
 </style>
 
-<div class="depot-wrap">
-  <div class="depot-ascii">
-╔══════════════════════════════════════════════════════════════════════════╗
-║                                                                          ║
-║  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ║
-║  │░░░░░░░░░░│  │░░░░░░░░░░│  │▓▓▓▓▓▓▓▓▓▓│  │░░░░░░░░░░│  │░░░░░░░░░░│  ║
-║  │  SERVER  │  │  SERVER  │  │   GPU    │  │  SERVER  │  │  SERVER  │  ║
-║  │   RACK   │  │   RACK   │  │ CLUSTER  │  │   RACK   │  │   RACK   │  ║
-║  │ ● ● ● ● │  │ ● ● ● ● │  │ ■ ■ ■ ■ │  │ ● ● ● ● │  │ ● ● ● ● │  ║
-║  │ ○ ○ ○ ○ │  │ ○ ○ ○ ○ │  │ □ □ □ □ │  │ ○ ○ ○ ○ │  │ ○ ○ ○ ○ │  ║
-║  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  ║
-╠═══════╧═════════════╧═════════════╧═════════════╧═════════════╧═════════╣
-║   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ COMPUTE DEPOT PLATFORM ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  ║
-╚══════════════════════════════════════════════════════════════════════════╝</div>
-  <div class="scanline"></div>
-  <div class="uni-title">Groningen University</div>
+<!-- 3D scene (fixed) -->
+<div id="lscene">
+  <div class="grid"></div>
+  <div class="horizon"></div>
+  <div class="vbeam vb1"></div>
+  <div class="vbeam vb2"></div>
+  <div class="vbeam vb3"></div>
+  <div class="vbeam vb4"></div>
+  <div class="racks">
+
+    <!-- Rack 1 -->
+    <div class="rack3d">
+      <div class="rt" style="width:60px"></div>
+      <div class="rf" style="width:60px">
+        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led x"></span></div>
+        <div class="dbay"></div>
+      </div>
+      <div class="rs"></div>
+    </div>
+
+    <!-- Rack 2 -->
+    <div class="rack3d">
+      <div class="rt" style="width:60px"></div>
+      <div class="rf" style="width:60px">
+        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led a"></span></div>
+        <div class="gbar"></div>
+        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+        <div class="gbar"></div>
+      </div>
+      <div class="rs"></div>
+    </div>
+
+    <!-- Rack 3 — GPU cluster (wider + taller) -->
+    <div class="rack3d">
+      <div class="rt" style="width:78px"></div>
+      <div class="rf" style="width:78px">
+        <div class="lrow"><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led b"></span></div>
+        <div class="gbar"></div><div class="gbar"></div>
+        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+        <div class="gbar"></div><div class="gbar"></div>
+        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
+        <div class="gbar"></div><div class="gbar"></div>
+      </div>
+      <div class="rs"></div>
+    </div>
+
+    <!-- Rack 4 -->
+    <div class="rack3d">
+      <div class="rt" style="width:60px"></div>
+      <div class="rf" style="width:60px">
+        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led b"></span><span class="led g"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led g"></span><span class="led b"></span><span class="led g"></span><span class="led x"></span></div>
+        <div class="dbay"></div>
+      </div>
+      <div class="rs"></div>
+    </div>
+
+    <!-- Rack 5 -->
+    <div class="rack3d">
+      <div class="rt" style="width:60px"></div>
+      <div class="rf" style="width:60px">
+        <div class="lrow"><span class="led x"></span><span class="led g"></span><span class="led b"></span><span class="led g"></span></div>
+        <div class="dbay"></div>
+        <div class="gbar"></div>
+        <div class="lrow"><span class="led g"></span><span class="led x"></span><span class="led g"></span><span class="led b"></span></div>
+        <div class="dbay"></div><div class="dbay"></div>
+        <div class="lrow"><span class="led b"></span><span class="led g"></span><span class="led x"></span><span class="led b"></span></div>
+        <div class="gbar"></div>
+      </div>
+      <div class="rs"></div>
+    </div>
+
+  </div><!-- .racks -->
+</div><!-- #lscene -->
+
+<!-- Header text (floats above scene in normal Streamlit flow) -->
+<div class="lhdr">
+  <div class="uni-name">Groningen University</div>
   <div class="uni-sub">◈ &nbsp; A I &nbsp; C o m p u t e &nbsp; D e p o t &nbsp; ◈</div>
+  <div class="scanline"></div>
 </div>
 """, unsafe_allow_html=True)
 
